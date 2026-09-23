@@ -61,5 +61,10 @@ priority:
     terminal: 0.5
     peripheral: 0.1
   seed_priority_factor: 0.85   # seeds are already known; the case asks to look above them
-  removal_candidates: 100
+  removal_candidates: 100      # removal impact reruns seed flow per node, so only for the top 100 pre-ranked
   top_n: 30
+
+resilience:
+  n_removed: [0, 5, 10, 20, 50]
+  random_draws: 5              # random removal is averaged over 5 draws
+  random_seed: 42
