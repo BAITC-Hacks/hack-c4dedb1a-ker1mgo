@@ -17,7 +17,7 @@ taint:
 
 roles:
   coordinator:
-    min_pays_seed: 1           # sends money back into known couriers
+    min_pays_seed: 2           # pays back into >= 2 distinct seeds; at 1 it matched 67 nodes (n_seed_sources >= 2 holds for 73%), at 2 it gives 22
     min_cycle_seeds: 2
     min_seed_sources: 2        # sits downstream of more than one seed
     betweenness_pct: 0.98
@@ -61,8 +61,13 @@ priority:
     terminal: 0.5
     peripheral: 0.1
   seed_priority_factor: 0.85   # seeds are already known; the case asks to look above them
-  removal_candidates: 100
+  removal_candidates: 100      # removal impact reruns seed flow per node, so only for the top 100 pre-ranked
   top_n: 30
+
+resilience:
+  n_removed: [0, 5, 10, 20, 50]
+  random_draws: 5              # random removal is averaged over 5 draws
+  random_seed: 42
 
 data_requests:
   small_component_max: 20      # weak components below this size aren't linked to the main network
