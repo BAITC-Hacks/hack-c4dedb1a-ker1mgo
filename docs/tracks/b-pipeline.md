@@ -31,13 +31,13 @@ Each milestone ends with a push (see "When to push" in [CONTRIBUTING.md](../../C
   Rows with `gid, reason, suggested_request`: likely-forwarding depth-4 nodes (request hop 5), seeds without outgoing transfers, seeds needing their incoming transfers, small isolated components.
   **Push.**
 
-- [ ] **B6 · README** (start at 1:00, final at 3:30)
+- [x] **B6 · README** (start at 1:00, final at 3:30)
   One-command quickstart (pipeline, app, optional assistant via `.env`) · mermaid diagram (data → metrics → roles → interface) plus a PNG for the slide ·
   role criteria table with thresholds and reasons · priority formula · cluster method (undirected caveat) · how each of the 8 data limitations from the ТЗ is handled ·
   truncation model results · outputs table · limitations and cautious wording · scaling to ~1M nodes (Polars/DuckDB, igraph/GraphFrames, Leiden, sparse SpMV seed flow, sampled betweenness, WebGL viewer, incremental crawl).
   **Push** each time a section is done.
 
-- [ ] **B7 · clean-clone check** (3:50)
+- [x] **B7 · clean-clone check** (3:50)
   Fresh directory, fresh venv, follow the README literally, time it, and fix anything that needed knowledge not written down.
   **Push**, then tell the team `main` is final.
 
@@ -48,7 +48,7 @@ B5 moved to track C (`moneygraph/data_requests.py`, already wired into `run.py`)
 > **B4 is unblocked: do it now.** Use `taint.propagate(G, seeds, rounds, removed={gid})` for removal impact (it's built for that).
 > Expect the roles from A8/A9 to shift a little; priority must only read columns, never role-specific thresholds.
 
-- [ ] **B8 · README fill-in** (by 3:30)
+- [x] **B8 · README fill-in** (by 3:30)
   Priority formula plus weights and the resilience result (priority vs degree vs random) · paste A's Roles/Truncation text · "Limitations of the approach" · "Scaling to ~1M nodes" ·
   outputs table: add `data_requests.csv`, `truncation_model.json`, `agent_eval.csv`. Leave the "Assistant" section to C.
   **Push** each section as it's done.
