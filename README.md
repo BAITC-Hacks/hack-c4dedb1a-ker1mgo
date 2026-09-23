@@ -103,7 +103,7 @@ Each node's `prio_components` column holds the weighted contributions as JSON (t
 `why` puts the top 3 into words, e.g.
 `875k KZT of seed money flows in; consolidator (role score 0.78); reachable from 11 seeds`.
 
-The top 30 currently has 12 transit nodes, 7 coordinators, 6 consolidators, 5 distributors and no seeds.
+The top 30 currently has 9 transit nodes, 8 consolidators, 7 coordinators, 6 distributors and no seeds.
 
 ### Resilience check
 
@@ -113,7 +113,7 @@ weakly connected component, the number of components, and the share of seed flow
 | Removed 50 by | largest component | components | seed flow left |
 |---|---|---|---|
 | nothing | 1,877 | 35 | 100% |
-| priority | 1,430 | 287 | 59% |
+| priority | 1,449 | 275 | 60% |
 | degree | 620 | 1,015 | 22% |
 | degree, seeds excluded | 1,049 | 730 | 85% |
 | random (mean of 5) | 1,794 | 63 | 94% |
@@ -121,7 +121,7 @@ weakly connected component, the number of components, and the share of seed flow
 Plain degree wins, and we're reporting that as it is. It wins for two reasons. First, 8 of the 50 highest-degree nodes
 are seeds, and removing a seed removes the money's source, which is not a finding. Second, the 60–116-recipient
 fan-out hubs leave hundreds of single nodes behind when removed, so the graph breaks up without much money moving.
-With seeds excluded, priority cuts seed flow much faster than degree (59% left vs 85%) but breaks the graph up less.
+With seeds excluded, priority cuts seed flow much faster than degree (60% left vs 85%) but breaks the graph up less.
 That's the trade-off we chose: priority follows the money, not the shape of the network.
 
 ## Data limitations and how we handle them
