@@ -6,7 +6,7 @@ Contract and rules: [../design.md](../design.md). Stubs already return the right
 
 Each milestone ends with a push (see "When to push" in [CONTRIBUTING.md](../../CONTRIBUTING.md)). Tick the box in the same push.
 
-- [ ] **A1 · features.py** (target 0:40)
+- [x] **A1 · features.py** (target 0:40)
   Add `n_seed_payers`, `pays_seed`, HITS (`nx.hits`, max_iter=500), exact directed betweenness,
   `in_cycle` / `cycle_with_seeds` via `nx.simple_cycles(G, length_bound=4)`. Keep `pass_through` NaN for seeds.
   *Done when:* `make run` prints p50/p90/p95/p98 of in_deg, out_deg and betweenness (used to confirm config thresholds).
