@@ -16,6 +16,7 @@ plotly==7.1.0
 langgraph==1.2.12
 langchain-core==1.6.4
 langchain-openai==1.6.4
+langchain==1.4.2            # langfuse.langchain callback imports it
 langfuse==4.15.4
 python-dotenv==1.2.3
 
