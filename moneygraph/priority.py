@@ -4,7 +4,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 
-from .taint import propagate
+from .taint import FlowModel, propagate
 
 COMPONENTS = ["seed_flow", "role", "seed_sources", "betweenness", "removal_impact"]
 
@@ -17,11 +17,12 @@ def pct(x: pd.Series) -> pd.Series:
 
 def removal_impact(G, seeds, rounds, gids) -> pd.Series:
     """Share of the seed flow reaching everyone else that disappears when the node is taken out."""
-    base = propagate(G, seeds, rounds)
+    model = FlowModel(G, seeds)
+    base = model.propagate(rounds)
     out = {}
     for g in gids:
         rest = base.drop(g).sum()
-        after = propagate(G, seeds, rounds, removed={g}).drop(g).sum()
+        after = model.propagate(rounds, removed={g}).drop(g).sum()
         out[g] = (rest - after) / rest if rest > 0 else 0.0
     return pd.Series(out, dtype=float)
 
@@ -47,7 +48,7 @@ def _phrase(comp, r):
 
 
 def why(r, weights, n_parts=3) -> str:
-    contrib = sorted(((weights[c] * r[f"c_{c}"], c) for c in COMPONENTS), reverse=True)
+    contrib = sorted(((weights[c] * getattr(r, f"c_{c}"), c) for c in COMPONENTS), reverse=True)
     parts = [_phrase(c, r) for v, c in contrib[:n_parts] if v > 0]
     text = "; ".join(parts) or "no seed flow, weak structural signals"
     if r.is_seed:
@@ -75,7 +76,15 @@ def compute(ctx) -> pd.DataFrame:
     c["removal_impact"] = pct(imp.loc[cand]).reindex(f.index).fillna(0.0)
 
     raw = sum(w[k] * c[k] for k in COMPONENTS) * seed_factor
-    score = raw / raw.max()
+    normalizer = float(raw.max()) if raw.max() > 0 else 1.0
+    score = raw / normalizer
+    ctx.priority_audit = {}
+    if getattr(ctx, "capture_explanations", True):
+        for i, gid in enumerate(f.index):
+            components = {k: float(w[k] * c.at[gid, k]) for k in COMPONENTS}
+            ctx.priority_audit[str(gid)] = {"components": components, "weighted_sum": sum(components.values()),
+                                            "seed_factor": float(seed_factor[i]), "normalization_factor": normalizer,
+                                            "priority_score": float(score.at[gid])}
 
     r = f[["is_seed", "role", "role_score", "seed_flow_in", "n_seed_sources"]].copy()
     r["removal_impact"] = imp
@@ -85,7 +94,7 @@ def compute(ctx) -> pd.DataFrame:
     df = f[["gid"]].reset_index(drop=True)
     df["priority_score"] = score.values
     df["prio_components"] = [json.dumps({k: round(w[k] * c.at[g, k], 4) for k in COMPONENTS}) for g in f.index]
-    df["why"] = [why(row, w) for _, row in r.iterrows()]
+    df["why"] = [why(row, w) for row in r.itertuples(index=False)]
     return df
 
 
@@ -100,10 +109,10 @@ def _order(ctx, strategy, rng):
     return rng.permutation(f.gid.to_numpy()).tolist()
 
 
-def _measure(ctx, removed, deep, base_reach):
+def _measure(ctx, removed, deep, base_reach, model):
     H = ctx.G.subgraph(set(ctx.G.nodes) - removed)
     wcc = [len(c) for c in nx.weakly_connected_components(H)]
-    s_in = propagate(ctx.G, ctx.seeds, ctx.cfg["taint"]["rounds"], removed=removed)
+    s_in = model.propagate(ctx.cfg["taint"]["rounds"], removed=removed)
     reach = s_in[deep].sum() / base_reach if base_reach > 0 else 0.0
     return max(wcc, default=0), len(wcc), reach
 
@@ -113,7 +122,8 @@ def resilience(ctx) -> pd.DataFrame:
     cfg = ctx.cfg["resilience"]
     f = ctx.features
     deep = f.loc[f.depth >= 2, "gid"].tolist()
-    base_reach = propagate(ctx.G, ctx.seeds, ctx.cfg["taint"]["rounds"])[deep].sum()
+    model = FlowModel(ctx.G, ctx.seeds)
+    base_reach = model.propagate(ctx.cfg["taint"]["rounds"])[deep].sum()
     rng = np.random.default_rng(cfg["random_seed"])
 
     rows = []
@@ -121,7 +131,7 @@ def resilience(ctx) -> pd.DataFrame:
         draws = cfg["random_draws"] if strategy == "random" else 1
         orders = [_order(ctx, strategy, rng) for _ in range(draws)]
         for n in cfg["n_removed"]:
-            m = np.mean([_measure(ctx, set(o[:n]), deep, base_reach) for o in orders], axis=0)
+            m = np.mean([_measure(ctx, set(o[:n]), deep, base_reach, model) for o in orders], axis=0)
             rows.append({"n_removed": n, "strategy": strategy, "largest_wcc": round(m[0], 1),
                          "n_components": round(m[1], 1), "seed_flow_reach": round(m[2], 4)})
     return pd.DataFrame(rows)

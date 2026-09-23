@@ -72,3 +72,15 @@ resilience:
 
 data_requests:
   small_component_max: 20      # weak components below this size aren't linked to the main network
+
+centrality:
+  betweenness_samples: null    # production remains exact; benchmark opts into a bounded sample explicitly
+  seed: 42                    # repeatable sampled centrality and synthetic graph lift
+
+explainability:
+  top_seed_paths: 5            # compact dossier: show top five contributions and disclose remaining modeled KZT
+
+benchmark:
+  scales: [1, 10, 100]
+  betweenness_samples: 32      # fixed number of source pivots, reported separately from production exact mode
+  seed: 42                    # deterministic degree-preserving graph lifts
