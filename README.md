@@ -2,6 +2,8 @@
 
 **Follow money from known seeds, inspect the evidence, and choose the next data request.**
 
+[Русская версия](README.ru.md)
+
 Team ker1mGo, case «Граф денег». An AML analyst knows 81 clients who received drug-related money (the *seeds*)
 and has their outgoing transfers four hops deep: 2,248 clients in total. Our tool answers the analyst's question
 **"which of these clients should I look at first, and why?"** It gives every client a role, a group and a review priority,
