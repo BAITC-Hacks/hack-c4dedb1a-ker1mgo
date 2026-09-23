@@ -3,6 +3,14 @@
 
 temporal:
   fast_pass_days: 2            # money in and out within 2 days = rapid transit (ТЗ temporal hint)
+  flags:
+    repeat_amount_min: 5       # same amount sent >= 5 times; 42 senders do this
+    round_unit: 10000          # 31% of all amounts are multiples of 10k
+    round_share: 0.8           # most of a node's transfers are round
+    near_threshold_range: [5000, 6000]
+    near_threshold_min: 3      # >= 3 transfers just around 5-6k
+    burst_share: 0.5           # half of a node's transfers on one day
+    min_tx: 5                  # round_amounts and burst need enough transfers to mean anything
 
 taint:
   rounds: 6                    # covers depth 4 plus back edges without letting cycles inflate flow
