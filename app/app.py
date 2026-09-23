@@ -71,6 +71,10 @@ if query:
 if st.session_state.get("gid"):
     st.sidebar.caption(f"focus: `{st.session_state.gid}`")
 
+with st.sidebar.expander("Demo walk-through"):
+    for label, g in store.demo_picks().items():
+        st.button(label, key=f"demo_{label}", on_click=focus, args=(g, "Node card"), width="stretch")
+
 st.sidebar.markdown("**Roles**")
 st.sidebar.markdown(" ".join(
     f"<span style='color:{c}'>●</span> {r}" for r, c in ROLE_COLORS.items()), unsafe_allow_html=True)
@@ -235,8 +239,9 @@ def assistant_page():
 
     q = st.chat_input("Ask about clients, flows or clusters")
     if not chat:
-        cols = st.columns(len(EXAMPLES))
-        for c, ex in zip(cols, EXAMPLES):
+        examples = [q for q in [store.demo_question()] if q] + EXAMPLES
+        cols = st.columns(len(examples))
+        for c, ex in zip(cols, examples):
             if c.button(ex):
                 q = ex
     if q:
