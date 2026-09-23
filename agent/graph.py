@@ -26,7 +26,14 @@ Rules:
 - Lead with the few strongest results; don't paste whole tool tables."""
 
 
+_env_loaded = False
+
+
 def load_env():
+    global _env_loaded
+    if _env_loaded:
+        return
+    _env_loaded = True
     load_dotenv()
     # an empty OPENAI_BASE_URL in .env would be taken as the endpoint
     for k in [k for k, v in os.environ.items() if k.startswith(("OPENAI_", "LANGFUSE_")) and not v.strip()]:
