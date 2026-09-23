@@ -18,7 +18,7 @@ def load_env():
     load_dotenv(PROJECT_ROOT / ".env")
     # Empty endpoint values would otherwise override the SDK defaults.
     for key, value in list(os.environ.items()):
-        if key.startswith(("OPENAI_", "LANGFUSE_")) and not value.strip():
+        if key.startswith("OPENAI_") and not value.strip():
             os.environ.pop(key)
     _env_loaded = True
 

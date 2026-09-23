@@ -3,8 +3,6 @@
 .env
 .env.*
 !.env.example
-.agents
-.codex
 **/__pycache__
 **/*.pyc
 .pytest_cache
@@ -13,8 +11,6 @@
 htmlcov
 .ipynb_checkpoints
 .DS_Store
-next-session-prompt.md
-CLAUDE.md
 out/*
 !out/bench.csv
 !out/bench.svg

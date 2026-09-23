@@ -27,4 +27,3 @@ out/*
 !.env.example
 .ipynb_checkpoints/
 .DS_Store
-next-session-prompt.md
