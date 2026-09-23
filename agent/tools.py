@@ -1,9 +1,8 @@
 import json
-import re
 
 from langchain_core.tools import tool
 
-from agent.store import to_gid
+from agent.identifiers import cited_gids as cited_gids
 
 MAX_ROWS = 25
 
@@ -100,9 +99,13 @@ def make_tools(store):
         tl["date"] = tl.date.dt.strftime("%Y-%m-%d")
         return _dump(json.loads(tl.head(60).to_json(orient="records", double_precision=0)))
 
-    return [get_node, neighbors, paths_between, common_collectors, top_nodes, cluster_summary, resilience,
-            tx_timeline]
-
-
-def cited_gids(text):
-    return {to_gid(m) for m in re.findall(r"(?<!\d)\d{15,20}(?!\d)", text or "")}
+    return [
+        get_node,
+        neighbors,
+        paths_between,
+        common_collectors,
+        top_nodes,
+        cluster_summary,
+        resilience,
+        tx_timeline,
+    ]

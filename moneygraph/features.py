@@ -1,11 +1,13 @@
 from collections import defaultdict
 
-import numpy as np
 import networkx as nx
+import numpy as np
 import pandas as pd
 
+from .data import Context
 
-def compute(ctx) -> pd.DataFrame:
+
+def compute(ctx: Context) -> pd.DataFrame:
     G = ctx.G
     df = ctx.nodes[["gid"]].copy()
     df["in_deg"] = df.gid.map(dict(G.in_degree())).astype(int)
@@ -18,10 +20,14 @@ def compute(ctx) -> pd.DataFrame:
 
     # seeds' inflow is under-counted (graph is built from them), so the ratio means nothing there
     is_seed = df.gid.isin(ctx.seeds)
-    df["pass_through"] = np.where((df.in_kzt > 0) & ~is_seed, df.out_kzt / df.in_kzt.where(df.in_kzt > 0), np.nan)
+    df["pass_through"] = np.where(
+        (df.in_kzt > 0) & ~is_seed, df.out_kzt / df.in_kzt.where(df.in_kzt > 0), np.nan
+    )
 
     seeds = ctx.seeds
-    df["n_seed_payers"] = df.gid.map(lambda v: sum(u in seeds for u in G.predecessors(v))).astype(int)
+    df["n_seed_payers"] = df.gid.map(lambda v: sum(u in seeds for u in G.predecessors(v))).astype(
+        int
+    )
     df["pays_seed"] = df.gid.map(lambda v: sum(w in seeds for w in G.successors(v))).astype(int)
 
     # no "weight" attribute on edges, so HITS runs on the unweighted structure
@@ -30,9 +36,13 @@ def compute(ctx) -> pd.DataFrame:
     df["authority"] = df.gid.map(auth).astype(float)
     centrality = ctx.cfg.get("centrality", {})
     samples = centrality.get("betweenness_samples")
-    df["betweenness"] = df.gid.map(nx.betweenness_centrality(
-        G, k=min(samples, len(G)) if samples else None,
-        seed=centrality.get("seed", ctx.cfg["clusters"]["seed"]))).astype(float)
+    df["betweenness"] = df.gid.map(
+        nx.betweenness_centrality(
+            G,
+            k=min(samples, len(G)) if samples else None,
+            seed=centrality.get("seed", ctx.cfg["clusters"]["seed"]),
+        )
+    ).astype(float)
 
     # Enumerate bounded local walks inside SCCs once. networkx.simple_cycles
     # repeatedly decomposes a giant SCC after removing vertices, which dominated
@@ -42,7 +52,7 @@ def compute(ctx) -> pd.DataFrame:
     df["cycle_with_seeds"] = df.gid.map(lambda v: len(cyc_seeds.get(v, ()))).astype(int)
 
     # printed on verbose runs so config thresholds can be checked against the data
-    if getattr(ctx, "verbose", False):
+    if ctx.verbose:
         print("  percentiles (p50/p90/p95/p98):")
         for col in ["in_deg", "out_deg", "betweenness"]:
             q = df[col].quantile([0.5, 0.9, 0.95, 0.98]).tolist()

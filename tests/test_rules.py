@@ -1,6 +1,9 @@
 """One small toy graph per role, run through the real pipeline steps up to roles."""
-import math
 
+import math
+from types import SimpleNamespace
+
+import networkx as nx
 import pandas as pd
 
 from moneygraph import features, roles, taint, temporal, truncation
@@ -14,12 +17,22 @@ def toy(transfers, depth, seeds):
     tx = pd.DataFrame(transfers, columns=["src", "dst", "sum_kzt", "day"])
     tx["date"] = pd.to_datetime(tx.day.map(DAY.format))
     tx = tx.drop(columns="day")
-    edges = tx.groupby(["src", "dst"]).agg(sum_kzt=("sum_kzt", "sum"), n_tx=("sum_kzt", "size")).reset_index()
+    edges = (
+        tx.groupby(["src", "dst"])
+        .agg(sum_kzt=("sum_kzt", "sum"), n_tx=("sum_kzt", "size"))
+        .reset_index()
+    )
     edges["depth"] = edges.dst.map(depth)
     nodes = pd.DataFrame({"gid": list(depth), "depth": list(depth.values())})
     nodes["is_seed"] = nodes.gid.isin(seeds)
-    ctx = Context(edges=edges, nodes=nodes, tx=tx, G=build_graph(edges, nodes), cfg=load_config(), seeds=set(seeds))
-    ctx.features = nodes.copy()
+    ctx = Context(
+        edges=edges,
+        nodes=nodes,
+        tx=tx,
+        G=build_graph(edges, nodes),
+        cfg=load_config(),
+        seeds=set(seeds),
+    )
     for step in [features, temporal, taint, truncation, roles]:
         ctx.features = ctx.features.merge(step.compute(ctx), on="gid", how="left")
     return ctx.features.set_index("gid")
@@ -48,7 +61,11 @@ def test_distributor_fans_out():
 
 def test_consolidator_collects_and_holds():
     payers = [(i, 10, 100_000, 1) for i in range(1, 7)]
-    f = toy(payers + [(10, 20, 50_000, 3)], {**{i: 0 for i in range(1, 7)}, 10: 1, 20: 2}, set(range(1, 7)))
+    f = toy(
+        payers + [(10, 20, 50_000, 3)],
+        {**{i: 0 for i in range(1, 7)}, 10: 1, 20: 2},
+        set(range(1, 7)),
+    )
     assert role_of(f, 10)[0] == "consolidator"
 
 
@@ -77,8 +94,12 @@ def test_depth4_sink_is_never_terminal_observed():
     c = dict(load_config()["roles"], fast_pass_days=2)
     row = f.loc[14].copy()
     row["gid"] = 14
-    for p, expect in [(math.nan, "truncated_unknown"), (0.1, "terminal_inferred"),
-                      (0.45, "truncated_unknown"), (0.9, "truncated_likely_forwarding")]:
+    for p, expect in [
+        (math.nan, "truncated_unknown"),
+        (0.1, "terminal_inferred"),
+        (0.45, "truncated_unknown"),
+        (0.9, "truncated_likely_forwarding"),
+    ]:
         row["p_has_out"] = p
         assert roles.assign(row, c, bt_thr=1.0)[1] == expect, p
 
@@ -98,3 +119,25 @@ def test_seed_role_ignores_inflow_and_pass_through():
         assert roles.kzt(in_kzt) + " in" not in ev
         results.add((role, detail, score))
     assert len(results) == 1
+
+
+def test_coordinator_evidence_counts_tied_betweenness():
+    transfers = [(1, 10, 100_000, 1), (2, 10, 80_000, 1), (10, 1, 50_000, 2), (10, 2, 40_000, 2)]
+    coordinator = toy(transfers, {1: 0, 2: 0, 10: 1}, {1, 2}).loc[10]
+    features = pd.DataFrame([coordinator.to_dict()] * 100)
+    features["gid"] = range(100)
+    features["betweenness"] = [0.9] * 2 + [0.5] * 3 + [0.0] * 95
+
+    result = roles.compute(SimpleNamespace(features=features, cfg=load_config()))
+
+    assert result.evidence.iloc[:2].str.contains("betweenness top 2%", regex=False).all()
+    assert result.evidence.iloc[2:5].str.contains("betweenness top 5%", regex=False).all()
+    assert result.evidence.iloc[5:].str.contains("betweenness 0", regex=False).all()
+
+
+def test_removed_node_stops_seed_flow_for_any_iterable():
+    graph = nx.DiGraph()
+    graph.add_weighted_edges_from([(1, 2, 100.0), (2, 3, 80.0)], weight="sum_kzt")
+
+    assert taint.propagate(graph, {1}, rounds=2).to_dict() == {1: 0.0, 2: 100.0, 3: 80.0}
+    assert taint.propagate(graph, {1}, rounds=2, removed=iter([2])).eq(0).all()

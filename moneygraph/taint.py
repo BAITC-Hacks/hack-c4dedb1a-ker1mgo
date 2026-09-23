@@ -1,26 +1,35 @@
 """Finite-round proportional seed-money propagation, with exact source reachability."""
+
+from collections.abc import Iterable
+
 import networkx as nx
 import numpy as np
 import pandas as pd
 import scipy.sparse as sp
 
+from .data import Context
+
 
 class FlowModel:
     """Prepare the sparse graph once for many removal scenarios."""
 
-    def __init__(self, G, seeds):
+    def __init__(self, G: nx.DiGraph, seeds: set[int]) -> None:
         self.nodes = list(G.nodes)
         self.idx = {g: i for i, g in enumerate(self.nodes)}
         src, dst, weights = zip(*G.edges(data="sum_kzt")) if G.number_of_edges() else ((), (), ())
         src_idx = np.array([self.idx[u] for u in src], dtype=int)
         dst_idx = np.array([self.idx[v] for v in dst], dtype=int)
         self.out_kzt = np.bincount(src_idx, weights=weights, minlength=len(self.nodes))
-        shares = np.divide(np.asarray(weights), self.out_kzt[src_idx],
-                           out=np.zeros(len(weights), dtype=float), where=self.out_kzt[src_idx] > 0)
+        shares = np.divide(
+            np.asarray(weights),
+            self.out_kzt[src_idx],
+            out=np.zeros(len(weights), dtype=float),
+            where=self.out_kzt[src_idx] > 0,
+        )
         self.matrix = sp.csr_matrix((shares, (dst_idx, src_idx)), shape=(len(self.nodes),) * 2)
         self.is_seed = np.array([g in seeds for g in self.nodes])
 
-    def propagate(self, rounds, removed=()):
+    def propagate(self, rounds: int, removed: Iterable[int] = ()) -> pd.Series:
         keep = np.ones(len(self.nodes), dtype=bool)
         for g in removed:
             if g in self.idx:
@@ -34,7 +43,9 @@ class FlowModel:
         return pd.Series(s_in, index=self.nodes)
 
 
-def propagate(G, seeds, rounds, removed=()):
+def propagate(
+    G: nx.DiGraph, seeds: set[int], rounds: int, removed: Iterable[int] = ()
+) -> pd.Series:
     """Modeled KZT arriving in the final round, not cumulative transferred money.
 
     Seeds emit their observed outflow each round. Other nodes forward received
@@ -62,7 +73,7 @@ def seed_source_counts(G, seeds):
     return {gid: masks[mapping[gid]].bit_count() - int(gid in seeds) for gid in G}
 
 
-def compute(ctx) -> pd.DataFrame:
+def compute(ctx: Context) -> pd.DataFrame:
     G, seeds = ctx.G, ctx.seeds
     df = ctx.nodes[["gid"]].copy()
     df["seed_flow_in"] = df.gid.map(propagate(G, seeds, ctx.cfg["taint"]["rounds"])).astype(float)

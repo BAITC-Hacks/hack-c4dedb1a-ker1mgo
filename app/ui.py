@@ -1,6 +1,7 @@
 import html
 import json
 import os
+from importlib.util import find_spec
 from pathlib import Path
 
 import pandas as pd
@@ -8,9 +9,9 @@ import streamlit as st
 
 from agent.store import GraphStore
 from app.theme import ROLE_COLORS, ROLE_LABELS
+from moneygraph.paths import OUTPUT_DIR
 
-ROOT = Path(__file__).resolve().parents[1]
-OUT = Path(os.environ.get("MONEYGRAPH_OUT", ROOT / "out"))
+OUT = Path(os.environ.get("MONEYGRAPH_OUT", OUTPUT_DIR))
 
 
 @st.cache_resource(show_spinner="Opening the case outputs…")
@@ -30,7 +31,9 @@ def get_store():
     try:
         return _load_store(str(OUT), signature)
     except (OSError, ValueError, KeyError) as error:
-        st.error("The case outputs could not be opened. Run `make run` to rebuild them, then refresh.")
+        st.error(
+            "The case outputs could not be opened. Run `make run` to rebuild them, then refresh."
+        )
         with st.expander("Diagnostic details"):
             st.code(str(error))
         st.stop()
@@ -75,13 +78,18 @@ def focused_gid(store):
 
 def badge(role, detail=""):
     label = ROLE_LABELS.get(role, role)
-    st.html(f'<span class="role-badge"><i class="role-dot" style="background:{ROLE_COLORS.get(role, "#8F9996")}"></i>{html.escape(label)}</span>')
+    st.html(
+        f'<span class="role-badge"><i class="role-dot" style="background:{ROLE_COLORS.get(role, "#8F9996")}"></i>{html.escape(label)}</span>'
+    )
     if detail and detail != role:
         st.caption(detail.replace("_", " "))
 
 
 def legend():
-    items = ''.join(f'<span><i class="role-dot" style="background:{color}"></i>{role}</span>' for role, color in ROLE_COLORS.items())
+    items = "".join(
+        f'<span><i class="role-dot" style="background:{color}"></i>{role}</span>'
+        for role, color in ROLE_COLORS.items()
+    )
     st.html(f'<div class="role-legend">{items}</div>')
 
 
@@ -94,13 +102,41 @@ def node_table(frame, key, columns=None):
         show["gid"] = show["gid"].map(str)
     if columns:
         show = show[[c for c in columns if c in show]]
-    selected = st.dataframe(show, hide_index=True, width="stretch", key=key,
-                            on_select="rerun", selection_mode="single-row",
-                            column_config={"gid": st.column_config.TextColumn("Client ID"),
-                                           "priority_score": st.column_config.NumberColumn("Priority", format="%.3f"),
-                                           "sum_kzt": st.column_config.NumberColumn("KZT", format="localized"),
-                                           "why": st.column_config.TextColumn("Reason for review", width="large")})
+    selected = st.dataframe(
+        show,
+        hide_index=True,
+        width="stretch",
+        key=key,
+        on_select="rerun",
+        selection_mode="single-row",
+        column_config={
+            "gid": st.column_config.TextColumn("Client ID"),
+            "priority_score": st.column_config.NumberColumn("Priority", format="%.3f"),
+            "sum_kzt": st.column_config.NumberColumn("KZT", format="localized"),
+            "why": st.column_config.TextColumn("Reason for review", width="large"),
+        },
+    )
     if selected.selection.rows:
         gid = frame.iloc[selected.selection.rows[0]].gid
         if st.button("Open selected dossier", key=f"open_{key}", type="primary"):
             open_dossier(gid)
+
+
+def assistant_enabled():
+    try:
+        if any(
+            find_spec(name) is None for name in ("langgraph", "langchain_core", "langchain_openai")
+        ):
+            return False
+        from agent.config import enabled
+
+        return enabled()
+    except ImportError:
+        return False
+
+
+@st.cache_resource
+def get_agent(signature, _store):
+    from agent.graph import build
+
+    return build(_store)

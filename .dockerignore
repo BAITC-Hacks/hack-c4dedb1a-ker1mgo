@@ -8,9 +8,13 @@
 **/__pycache__
 **/*.pyc
 .pytest_cache
+.ruff_cache
+.coverage
+htmlcov
 .ipynb_checkpoints
 .DS_Store
-design-refs
+next-session-prompt.md
+CLAUDE.md
 out/*
 !out/bench.csv
 !out/bench.svg
