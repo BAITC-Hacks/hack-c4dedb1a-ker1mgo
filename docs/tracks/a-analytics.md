@@ -47,7 +47,7 @@ Each milestone ends with a push (see "When to push" in [CONTRIBUTING.md](../../C
 
 ## Round 2 (from review)
 
-- [ ] **A8 · tighten coordinator** (next, 20 min)
+- [x] **A8 · tighten coordinator** (next, 20 min)
   67 nodes are coordinators today, because `n_seed_sources ≥ 2` holds for 1,635 of 2,248 nodes (73%) and so doesn't discriminate.
   Measured options: `min_seed_sources: 9` (p90) → 20 nodes · `min_pays_seed: 2` → 22 · betweenness ≥ p98 required → 14.
   Pick one (or a combination) that gives roughly 15–25 nodes and write the reason next to it in `config.yaml`.
