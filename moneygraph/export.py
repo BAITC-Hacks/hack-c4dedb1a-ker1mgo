@@ -13,7 +13,13 @@ def _clip(s: pd.Series) -> pd.Series:
     return s.fillna("").astype(str).str.slice(0, EVIDENCE_MAX)
 
 
-def write(features: pd.DataFrame, clusters: pd.DataFrame, resilience: pd.DataFrame, out_dir: Path, top_n: int):
+def write(
+    features: pd.DataFrame,
+    clusters: pd.DataFrame,
+    resilience: pd.DataFrame,
+    out_dir: Path,
+    top_n: int,
+):
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     f = features.copy()
@@ -22,8 +28,9 @@ def write(features: pd.DataFrame, clusters: pd.DataFrame, resilience: pd.DataFra
 
     f.to_parquet(out_dir / "features.parquet", index=False)
     f[NODES_COLS + NODES_EXTRA].to_csv(out_dir / "nodes_roles.csv", index=False)
-    clusters[CLUSTER_COLS + [c for c in clusters.columns if c not in CLUSTER_COLS]] \
-        .sort_values("cluster_id").to_csv(out_dir / "clusters.csv", index=False)
+    clusters[CLUSTER_COLS + [c for c in clusters.columns if c not in CLUSTER_COLS]].sort_values(
+        "cluster_id"
+    ).to_csv(out_dir / "clusters.csv", index=False)
 
     top = f.sort_values("priority_score", ascending=False).head(top_n).reset_index(drop=True)
     top.insert(0, "rank", top.index + 1)

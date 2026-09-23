@@ -1,10 +1,16 @@
+from collections.abc import Iterable
+
 import networkx as nx
 import numpy as np
 import pandas as pd
 import scipy.sparse as sp
 
+from .data import Context
 
-def propagate(G, seeds, rounds, removed=()):
+
+def propagate(
+    G: nx.DiGraph, seeds: set[int], rounds: int, removed: Iterable[int] = ()
+) -> pd.Series:
     """KZT of seed-originated money flowing into each node (s_in), as a Series by gid.
 
     Each round, a node forwards what it received, capped at its own out_kzt, split over its
@@ -17,10 +23,13 @@ def propagate(G, seeds, rounds, removed=()):
     out_kzt = np.bincount([idx[u] for u in src], weights=w, minlength=len(nodes))
     share = np.array(w) / out_kzt[[idx[u] for u in src]]
     # M[v, u] = share of u's outflow that goes to v, so s_in = M @ s_out
-    M = sp.csr_matrix((share, ([idx[v] for v in dst], [idx[u] for u in src])), shape=(len(nodes),) * 2)
+    M = sp.csr_matrix(
+        (share, ([idx[v] for v in dst], [idx[u] for u in src])), shape=(len(nodes),) * 2
+    )
 
     is_seed = np.array([g in seeds for g in nodes])
-    keep = np.array([g not in set(removed) for g in nodes])
+    removed = set(removed)
+    keep = np.array([g not in removed for g in nodes])
     seed_out = np.where(is_seed & keep, out_kzt, 0.0)
     s_out = seed_out.copy()
     s_in = np.zeros(len(nodes))
@@ -30,7 +39,7 @@ def propagate(G, seeds, rounds, removed=()):
     return pd.Series(s_in, index=nodes)
 
 
-def compute(ctx) -> pd.DataFrame:
+def compute(ctx: Context) -> pd.DataFrame:
     G, seeds = ctx.G, ctx.seeds
     df = ctx.nodes[["gid"]].copy()
     df["seed_flow_in"] = df.gid.map(propagate(G, seeds, ctx.cfg["taint"]["rounds"])).astype(float)

@@ -1,13 +1,16 @@
-"""Role rules from docs/design.md, checked in order; the first match wins.
+"""Role rules from config.yaml and docs/methodology.md; the first matching rule wins.
 
 Each rule returns the margins of its threshold conditions (None if it does not match), so
 role_score can say how far past the thresholds a node is. Seeds never use in_kzt or
 pass_through: their inflow is under-counted because the graph was crawled from them.
 """
+
 import math
 
 import numpy as np
 import pandas as pd
+
+from .data import Context
 
 RULES = ["coordinator", "distributor", "consolidator", "transit", "terminal"]
 EVIDENCE_MAX = 200
@@ -48,14 +51,22 @@ def nan_to(x, v):
 
 def rule(name, r, c, bt_thr):
     """Margins list if node r matches role `name`, else None."""
-    pt = nan_to(r.pass_through, math.inf)  # NaN (seeds, no inflow) never satisfies a pass-through bound
+    pt = nan_to(
+        r.pass_through, math.inf
+    )  # NaN (seeds, no inflow) never satisfies a pass-through bound
     if name == "coordinator":
         k = c["coordinator"]
-        return all_of(any_of(ge(r.pays_seed, k["min_pays_seed"]), ge(r.cycle_with_seeds, k["min_cycle_seeds"])),
-                      any_of(ge(r.n_seed_sources, k["min_seed_sources"]), ge(r.betweenness, bt_thr)))
+        return all_of(
+            any_of(
+                ge(r.pays_seed, k["min_pays_seed"]), ge(r.cycle_with_seeds, k["min_cycle_seeds"])
+            ),
+            any_of(ge(r.n_seed_sources, k["min_seed_sources"]), ge(r.betweenness, bt_thr)),
+        )
     if name == "distributor":
         k = c["distributor"]
-        return all_of(ge(r.out_deg, k["min_out_deg"]), ge(r.out_deg, k["out_in_ratio"] * max(r.in_deg, 1)))
+        return all_of(
+            ge(r.out_deg, k["min_out_deg"]), ge(r.out_deg, k["out_in_ratio"] * max(r.in_deg, 1))
+        )
     if name == "consolidator":
         k = c["consolidator"]
         few_exits = le(r.out_deg, r.in_deg * k["out_in_ratio"])
@@ -65,7 +76,11 @@ def rule(name, r, c, bt_thr):
         k = c["transit"]
         if r.is_seed or r.in_deg < 1 or r.out_deg < 1:
             return None
-        fast = ge(r.fast_pass_share, k["min_fast_pass_share"]) if pt <= k["max_pass_through_fast"] else None
+        fast = (
+            ge(r.fast_pass_share, k["min_fast_pass_share"])
+            if pt <= k["max_pass_through_fast"]
+            else None
+        )
         return all_of(any_of(between(pt, k["pass_through_low"], k["pass_through_high"]), fast))
     if name == "terminal":
         if r.is_seed or r.out_deg > 0 or r.in_deg < 1:
@@ -80,20 +95,36 @@ def rule(name, r, c, bt_thr):
 def fast_pass_only(r, c):
     """Fast pass-through but pass_through above the cap: kept as a secondary hint, not a role."""
     k = c["transit"]
-    return (not r.is_seed and r.in_deg >= 1 and r.out_deg >= 1 and r.fast_pass_share >= k["min_fast_pass_share"]
-            and nan_to(r.pass_through, 0) > k["max_pass_through_fast"])
+    return (
+        not r.is_seed
+        and r.in_deg >= 1
+        and r.out_deg >= 1
+        and r.fast_pass_share >= k["min_fast_pass_share"]
+        and nan_to(r.pass_through, 0) > k["max_pass_through_fast"]
+    )
 
 
 def partial_match(r, c):
     """How close a non-matching node gets to the structural roles, 0-1 (for peripheral scores)."""
     k = c
     pt = nan_to(r.pass_through, math.inf)
-    close = lambda x, thr: min(x / thr, 1.0) if thr > 0 else 1.0
+
+    def close(x: float, threshold: float) -> float:
+        return min(x / threshold, 1.0) if threshold > 0 else 1.0
+
     cands = [
-        np.mean([close(r.out_deg, k["distributor"]["min_out_deg"]),
-                 close(r.out_deg, k["distributor"]["out_in_ratio"] * max(r.in_deg, 1))]),
-        np.mean([close(r.in_deg, k["consolidator"]["min_in_deg"]),
-                 1.0 if r.out_deg <= r.in_deg * k["consolidator"]["out_in_ratio"] else 0.0]),
+        np.mean(
+            [
+                close(r.out_deg, k["distributor"]["min_out_deg"]),
+                close(r.out_deg, k["distributor"]["out_in_ratio"] * max(r.in_deg, 1)),
+            ]
+        ),
+        np.mean(
+            [
+                close(r.in_deg, k["consolidator"]["min_in_deg"]),
+                1.0 if r.out_deg <= r.in_deg * k["consolidator"]["out_in_ratio"] else 0.0,
+            ]
+        ),
         close(r.fast_pass_share, k["transit"]["min_fast_pass_share"]) if not r.is_seed else 0.0,
     ]
     if not r.is_seed and r.in_deg and r.out_deg and math.isfinite(pt):
@@ -129,11 +160,14 @@ def betweenness_text(top):
 def evidence(r, role, detail, c):
     days = c["fast_pass_days"]
     seeds = f" ({n(r.n_seed_payers, 'seed')})" if r.n_seed_payers else ""
-    inflow = "" if r.is_seed else f" → {kzt(r.in_kzt)} in"   # seeds: in_kzt is under-counted
+    inflow = "" if r.is_seed else f" → {kzt(r.in_kzt)} in"  # seeds: in_kzt is under-counted
     if role == "coordinator":
-        parts = [f"pays {n(r.pays_seed, 'seed')} back" if r.pays_seed else "",
-                 f"on cycles with {n(r.cycle_with_seeds, 'seed')}" if r.cycle_with_seeds else "",
-                 f"downstream of {n(r.n_seed_sources, 'seed')}", betweenness_text(r.get("bt_top"))]
+        parts = [
+            f"pays {n(r.pays_seed, 'seed')} back" if r.pays_seed else "",
+            f"on cycles with {n(r.cycle_with_seeds, 'seed')}" if r.cycle_with_seeds else "",
+            f"downstream of {n(r.n_seed_sources, 'seed')}",
+            betweenness_text(r.get("bt_top")),
+        ]
         s = "; ".join(p for p in parts if p)
     elif role == "distributor":
         s = f"pays {n(r.out_deg, 'recipient')} {kzt(r.out_kzt)}; from {n(r.in_deg, 'payer')}{seeds}"
@@ -145,8 +179,10 @@ def evidence(r, role, detail, c):
             s += f"; sends on {pct(nan_to(r.pass_through, 0))}"
         s += f"; to {n(r.out_deg, 'recipient')}; up to {n(r.max_same_day_payers, 'payer')} same day"
     elif role == "transit":
-        s = (f"{kzt(r.in_kzt)} in from {r.in_deg}, {kzt(r.out_kzt)} out to {r.out_deg} "
-             f"({pct(nan_to(r.pass_through, 0))}); {pct(r.fast_pass_share)} forwarded within {days} days")
+        s = (
+            f"{kzt(r.in_kzt)} in from {r.in_deg}, {kzt(r.out_kzt)} out to {r.out_deg} "
+            f"({pct(nan_to(r.pass_through, 0))}); {pct(r.fast_pass_share)} forwarded within {days} days"
+        )
     elif detail == "terminal_observed":
         s = f"{n(r.in_deg, 'payer')}{seeds}{inflow}; no outgoing transfers although depth {r.depth} was crawled"
     elif detail == "terminal_inferred":
@@ -161,8 +197,10 @@ def evidence(r, role, detail, c):
     elif detail == "seed_no_outgoing":
         s = f"seed with 0 outgoing transfers in data; {n(r.in_deg, 'payer')}"
     elif fast_pass_only(r, c):
-        s = (f"{kzt(r.in_kzt)} in, {kzt(r.out_kzt)} out ({pct(r.pass_through)}); {pct(r.fast_pass_share)} forwarded "
-             f"within {days} days, but most outflow comes from outside the graph")
+        s = (
+            f"{kzt(r.in_kzt)} in, {kzt(r.out_kzt)} out ({pct(r.pass_through)}); {pct(r.fast_pass_share)} forwarded "
+            f"within {days} days, but most outflow comes from outside the graph"
+        )
     else:
         s = f"{n(r.in_deg, 'payer')} / {n(r.out_deg, 'recipient')}; {kzt(r.out_kzt)} out; no role rule met"
     if r.seed_flow_in > 0:
@@ -202,16 +240,18 @@ def assign(r, c, bt_thr):
     return role, detail, secondary, float(np.clip(score, 0, 1))
 
 
-def compute(ctx) -> pd.DataFrame:
+def compute(ctx: Context) -> pd.DataFrame:
     f = ctx.features
     c = dict(ctx.cfg["roles"], fast_pass_days=ctx.cfg["temporal"]["fast_pass_days"])
     bt_thr = float(f.betweenness.quantile(c["coordinator"]["betweenness_pct"]))
     # share of nodes at or above each betweenness value, for "betweenness top 2%" in evidence
-    b = f.betweenness.to_numpy()
-    bt_top = pd.Series((b[None, :] >= b[:, None]).mean(axis=1), index=f.index)
+    # max rank includes ties without materializing a nodes-by-nodes comparison matrix
+    bt_top = f.betweenness.rank(method="max", ascending=False).fillna(0) / len(f)
     rows = []
     for i, r in f.iterrows():
         r["bt_top"] = bt_top[i]
         role, detail, secondary, score = assign(r, c, bt_thr)
         rows.append((r.gid, role, detail, secondary, score, evidence(r, role, detail, c)))
-    return pd.DataFrame(rows, columns=["gid", "role", "role_detail", "secondary_roles", "role_score", "evidence"])
+    return pd.DataFrame(
+        rows, columns=["gid", "role", "role_detail", "secondary_roles", "role_score", "evidence"]
+    )

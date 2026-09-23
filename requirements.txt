@@ -6,7 +6,6 @@ numpy==2.5.3
 scipy==1.18.1
 scikit-learn==1.9.1
 pyyaml==6.0.3
-matplotlib==3.11.2          # standalone benchmark chart
 
 # viewer
 streamlit==1.64.0
@@ -20,6 +19,3 @@ langchain-openai==1.6.4
 langchain==1.4.2            # langfuse.langchain callback imports it
 langfuse==4.15.4
 python-dotenv==1.2.3
-
-# dev
-pytest==9.1.1

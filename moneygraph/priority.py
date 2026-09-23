@@ -4,6 +4,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 
+from .data import Context
 from .taint import propagate
 
 COMPONENTS = ["seed_flow", "role", "seed_sources", "betweenness", "removal_impact"]
@@ -55,7 +56,7 @@ def why(r, weights, n_parts=3) -> str:
     return text
 
 
-def compute(ctx) -> pd.DataFrame:
+def compute(ctx: Context) -> pd.DataFrame:
     cfg = ctx.cfg["priority"]
     w = cfg["weights"]
     f = ctx.features.set_index("gid", drop=False)
@@ -70,7 +71,11 @@ def compute(ctx) -> pd.DataFrame:
     seed_factor = np.where(f.is_seed, cfg["seed_priority_factor"], 1.0)
     pre = sum(w[k] * c[k] for k in COMPONENTS[:-1]) * seed_factor
     cand = pre.sort_values(ascending=False).head(cfg["removal_candidates"]).index
-    imp = removal_impact(ctx.G, ctx.seeds, ctx.cfg["taint"]["rounds"], cand).reindex(f.index).fillna(0.0)
+    imp = (
+        removal_impact(ctx.G, ctx.seeds, ctx.cfg["taint"]["rounds"], cand)
+        .reindex(f.index)
+        .fillna(0.0)
+    )
     # ranked among the candidates only; everyone else gets 0
     c["removal_impact"] = pct(imp.loc[cand]).reindex(f.index).fillna(0.0)
 
@@ -84,7 +89,9 @@ def compute(ctx) -> pd.DataFrame:
 
     df = f[["gid"]].reset_index(drop=True)
     df["priority_score"] = score.values
-    df["prio_components"] = [json.dumps({k: round(w[k] * c.at[g, k], 4) for k in COMPONENTS}) for g in f.index]
+    df["prio_components"] = [
+        json.dumps({k: round(w[k] * c.at[g, k], 4) for k in COMPONENTS}) for g in f.index
+    ]
     df["why"] = [why(row, w) for _, row in r.iterrows()]
     return df
 
@@ -96,7 +103,11 @@ def _order(ctx, strategy, rng):
     if strategy.startswith("degree"):
         # degree_nonseed skips seeds, since priority discounts them and removing a seed removes the money's source
         g = f[~f.is_seed] if strategy == "degree_nonseed" else f
-        return g.assign(d=g.in_deg + g.out_deg).sort_values(["d", "gid"], ascending=[False, True]).gid.tolist()
+        return (
+            g.assign(d=g.in_deg + g.out_deg)
+            .sort_values(["d", "gid"], ascending=[False, True])
+            .gid.tolist()
+        )
     return rng.permutation(f.gid.to_numpy()).tolist()
 
 
@@ -108,7 +119,7 @@ def _measure(ctx, removed, deep, base_reach):
     return max(wcc, default=0), len(wcc), reach
 
 
-def resilience(ctx) -> pd.DataFrame:
+def resilience(ctx: Context) -> pd.DataFrame:
     """Remove the top-N nodes by priority, by degree, and at random; see what's left of the network."""
     cfg = ctx.cfg["resilience"]
     f = ctx.features
@@ -122,6 +133,13 @@ def resilience(ctx) -> pd.DataFrame:
         orders = [_order(ctx, strategy, rng) for _ in range(draws)]
         for n in cfg["n_removed"]:
             m = np.mean([_measure(ctx, set(o[:n]), deep, base_reach) for o in orders], axis=0)
-            rows.append({"n_removed": n, "strategy": strategy, "largest_wcc": round(m[0], 1),
-                         "n_components": round(m[1], 1), "seed_flow_reach": round(m[2], 4)})
+            rows.append(
+                {
+                    "n_removed": n,
+                    "strategy": strategy,
+                    "largest_wcc": round(m[0], 1),
+                    "n_components": round(m[1], 1),
+                    "seed_flow_reach": round(m[2], 4),
+                }
+            )
     return pd.DataFrame(rows)

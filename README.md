@@ -1,293 +1,101 @@
 # Money graph
 
-Team ker1mGo, case «Граф денег». From a 4-hop graph of outgoing transfers starting at 81 known couriers (seeds),
-we assign each of the 2,248 clients a role, group them into clusters, and rank **who an AML analyst should look at first, and why**.
-
-Everything we output is a hypothesis to check. It is not a statement that anyone is guilty.
+Team ker1mGo, case «Граф денег». The offline pipeline assigns roles to 2,248 clients,
+groups them into clusters, and ranks who an AML analyst should review first and why.
+The Streamlit viewer and optional assistant explore those computed results.
+All findings are hypotheses to investigate, not statements of guilt.
 
 ## Quickstart
 
+Python 3.12 and `make` are required. Run these commands from the repository root:
+
 ```bash
-python3.12 -m venv .venv && source .venv/bin/activate
+python3.12 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
-make run      # project_docs/data -> out/  (~10 s, offline)
-make test     # optional, ~15 s
-make app      # viewer: open http://localhost:8501 (no browser tab opens by itself)
+make run
+make app
 ```
 
-Needs Python 3.12 and `make`. From a fresh clone to finished outputs takes about 1.5 minutes, mostly `pip install`.
+Open <http://localhost:8501>. The pipeline and viewer work without API keys.
+`make` uses `.venv/bin/python` when available; override with `PY=/path/to/python`.
+For development, install `requirements-dev.txt` and run `make check`.
 
-`make run` is the same as `python -m moneygraph.run --data project_docs/data --out out`.
-`make test` checks the outputs (row count, schema, evidence, clusters, top list, runtime, no hardcoded gids).
+The supplied task and datasets remain in [`project_docs/`](project_docs/README.md).
+`make run` reads `project_docs/data/` and refreshes `out/`, including the untracked
+`features.parquet` needed by the viewer. Use `make run OUT=/tmp/moneygraph-output`
+to validate without replacing local outputs. CLI defaults resolve from the source
+checkout; explicitly supplied relative paths resolve from the working directory.
 
-Optional assistant: `cp .env.example .env` and set `OPENAI_API_KEY` (and `OPENAI_MODEL`, `OPENAI_BASE_URL` for any
-OpenAI-compatible endpoint). The pipeline and viewer work without it.
+## Commands
 
-## How it works
+| Command | Purpose |
+|---|---|
+| `make run` | Compute roles, clusters, priorities, model report and data requests offline |
+| `make app` | Launch the viewer on port 8501 |
+| `make test` | Run offline tests; generated test outputs go to temporary directories |
+| `make lint` | Check imports and common Python errors |
+| `make format` | Sort imports and format Python files |
+| `make check` | Run lint, formatting checks and tests |
+| `make eda` | Print exploratory data findings |
+| `make eval` | Evaluate the assistant; requires a configured API key |
+| `make docker-up` | Build and launch the pipeline and viewer with Docker Compose |
+| `make docker-down` | Stop the containers, retaining the output volume |
 
-```mermaid
-flowchart LR
-  D[(parquet:<br/>nodes, edges,<br/>transactions)] --> M[metrics<br/>degrees, KZT, pagerank,<br/>betweenness, temporal,<br/>seed-money flow]
-  M --> T[truncation model<br/>depth-4 nodes]
-  M & T --> R[roles<br/>ordered rules +<br/>evidence]
-  R --> C[clusters<br/>Louvain]
-  R & C --> P[priority<br/>+ why]
-  P --> O[(out/*.csv)]
-  O --> UI[Streamlit viewer]
-  O --> AG[assistant<br/>optional]
+Docker Compose runs the offline pipeline first and mounts its output read-only in
+the viewer. Set `MONEYGRAPH_PORT` to change the published port. `.env` is optional
+and excluded from the image. The Docker launch also requires Compose support for
+optional `env_file` entries.
+
+## Structure
+
+```text
+moneygraph/       Data loading, analytics, export pipeline and shared paths/formatting
+agent/            Read-only graph queries, fact cards and optional chat/evaluation
+app/              Streamlit entry point, navigation, resources and charts
+  views/          Overview, network, top list, node, assistant and method screens
+tests/            Offline regression and integration tests
+docs/             Architecture, methodology and assistant reference
+project_docs/     Original task, dataset description and supplied parquet data
+out/              Reviewed submission artifacts and local generated results
 ```
 
-Each step is a module in `moneygraph/` with one function `compute(ctx)` that returns columns keyed by `gid`;
-`run.py` merges them. Every threshold and weight is in [`moneygraph/config.yaml`](moneygraph/config.yaml), with the reason for each value.
+The pipeline produces results; the viewer and assistant read them. Each pipeline
+step exposes `compute(ctx)` and returns columns keyed by `gid`. Thresholds and
+weights belong in [`moneygraph/config.yaml`](moneygraph/config.yaml).
 
 ## Outputs
 
-The outputs of the current `main` are committed in [`out/`](out/). The pipeline is deterministic (fixed seeds), so
-`make run` reproduces them byte for byte. `features.parquet` is not committed; `make run` rebuilds it for the viewer.
-
-| File | Contents |
+| File in `out/` | Contents |
 |---|---|
-| `out/nodes_roles.csv` | `gid, role, role_score, cluster_id, priority_score, evidence` + `role_detail, secondary_roles, depth, is_seed` (2,248 rows) |
-| `out/clusters.csv` | `cluster_id, n_nodes, n_seed, sum_kzt_internal, top_gids, hypothesis` + `dominant_roles, seed_flow_in` |
-| `out/top_nodes.csv` | `rank, gid, role, priority_score, why` + `cluster_id, evidence` (top 30) |
-| `out/features.parquet` | every computed metric per node (used by the viewer and assistant) |
-| `out/resilience.csv` | largest component, number of components and seed flow left after removing the top-N by each strategy |
-| `out/data_requests.csv` | `gid, reason, suggested_request`: what extra data would resolve each gap (hop 5 for likely forwarders, seed inflows, ...) |
-| `out/truncation_model.json` | depth-4 model: features, CV AUC, coefficients, observed vs predicted forwarding rate |
-| `out/agent_eval.csv` | assistant eval (`make eval`, needs a key): question, expected vs cited gids, recall, precision, unknown gids |
+| `nodes_roles.csv` | Roles, evidence, clusters and priorities for every client |
+| `clusters.csv` | Cluster membership counts, top clients and hypotheses |
+| `top_nodes.csv` | Ranked clients and reasons to review them |
+| `features.parquet` | Computed metrics used by the viewer and assistant |
+| `resilience.csv` | Network and seed-flow changes after removing selected clients |
+| `data_requests.csv` | Additional data needed to resolve observation gaps |
+| `truncation_model.json` | Depth-4 model features, validation and coefficients |
+| `agent_eval.csv` | Optional assistant evaluation results from `make eval` |
 
-## Roles
+The reviewed CSVs and model report are tracked submission artifacts. Feature tables,
+assistant evaluations and prose caches are local generated files. Refresh submission
+artifacts deliberately and review their diff. Fixed seeds control randomized steps;
+floating-point eigensolvers can still produce tiny differences across runs or platforms.
 
-Every client gets exactly one role from ordered, documented rules. The rules are checked top to bottom and the first match wins;
-any other rules that also match are listed in `secondary_roles`. Thresholds live in `moneygraph/config.yaml`, each with its reason.
+The Method screen displays model, resilience and evaluation evidence. It also accepts
+optional `bench.csv`, `bench.svg` and `bench_metadata.json` exports when available;
+this repository currently has no benchmark generator.
 
-| # | Role | Rule (final thresholds) | Why |
-|---|---|---|---|
-| 1 | **coordinator** | (pays ≥ 2 distinct seeds, or on cycles of length ≤ 4 with ≥ 2 seeds) and (reachable from ≥ 2 seeds, or betweenness ≥ p98) | sends money back into several known couriers while sitting between seed flows. At "≥ 1 seed" the rule matched 67 nodes, because 73% of nodes are reachable from ≥ 2 seeds; at 2 it gives 22 |
-| 2 | **distributor** | out_deg ≥ 10 and out_deg ≥ 3 × max(in_deg, 1) | fan-out: few sources, many recipients (hubs up to 116 recipients) |
-| 3 | **consolidator** | in_deg ≥ 5 and (pass_through ≤ 0.5 or out_deg ≤ in_deg / 3) | many distinct payers, few exits. in_deg ≥ 5 is p98 |
-| 4 | **transit** | non-seed, in ≥ 1, out ≥ 1, and (0.8 ≤ pass_through ≤ 1.2, or ≥ 50% of inflow forwarded within 2 days while pass_through ≤ 2) | passes money on without holding it. Above pass_through 2, most outflow comes from outside the graph, so fast forwarding alone is not enough |
-| 5 | **terminal** | out = 0, in ≥ 1, and depth ≤ 3 (`terminal_observed`), or depth 4 with P(forwards) < 0.3 (`terminal_inferred`) | the crawl checked outgoing transfers of every depth 1–3 node, so a sink there is observed; at depth 4 it can only be inferred |
-| 6 | **peripheral** | everything else: `truncated_unknown`, `truncated_likely_forwarding` (P > 0.6), `seed_no_outgoing`, `no_edges`, `weak_signal` | stays inside the role dictionary while being honest about gaps |
+## Optional assistant
 
-Seeds never use `in_kzt` or `pass_through`: their inflow is under-counted because the graph was crawled from them.
-Fast pass-through is matched FIFO: each incoming transfer is matched by outgoing transfers within 2 days.
+Copy `.env.example` to `.env` and set `OPENAI_API_KEY`. `OPENAI_MODEL` and
+`OPENAI_BASE_URL` are optional. Chat, evaluation and prose generation can call the
+configured provider; ordinary pipeline runs and tests stay offline.
+See [assistant setup and tools](docs/assistant.md).
 
-**role_score**: for each threshold condition, `m = clip((x - thr) / thr, 0, 1)` (the inverse for ≤ conditions), then `0.5 + 0.5 × mean(m)`.
-`terminal_observed` = 0.9, `terminal_inferred` = 1 − P(forwards), `peripheral` = 1 − the node's best partial match to a structural role.
+## Reference
 
-**evidence**: at most 200 characters, always with numbers, worded as a hypothesis, e.g.
-`8 payers (2 seeds) → 2.16M in; sends on 24%; to 2 recipients; up to 7 payers same day; seed money in 875k; flags burst`.
-
-### Role counts (2,248 clients)
-
-| Role | Nodes | Share | By detail |
-|---|---:|---:|---|
-| terminal | 1,133 | 50.4% | 1,071 observed · 62 inferred |
-| peripheral | 907 | 40.3% | 494 weak signal (94 of them fast forwarders above the pass-through cap) · 350 truncated unknown · 32 truncated likely forwarding · 31 seeds without outgoing |
-| transit | 107 | 4.8% | |
-| distributor | 50 | 2.2% | |
-| consolidator | 29 | 1.3% | |
-| coordinator | 22 | 1.0% | |
-
-## Truncation
-
-The crawl stopped at depth 4, so for the 444 depth-4 clients we can't see whether they send money on. Treating them all as end recipients
-would be wrong: 35% / 42% / 36% of depth 1 / 2 / 3 clients do forward money.
-
-We train a logistic regression (`StandardScaler` + `LogisticRegression(class_weight="balanced")`) on the **1,723 non-seed depth 1–3 clients with inflow**,
-where outgoing transfers were crawled, with the label "has outgoing transfers". It uses **inbound-only** features, so the same inputs exist at depth 4,
-and no depth feature. Payer role is not available at this step, so payer out-degree and pass-through stand in for it.
-
-**5-fold stratified CV AUC: 0.733** (the trust threshold is 0.6; below it every depth-4 sink would stay `truncated_unknown`).
-
-| Feature (standardized) | Coefficient |
-|---|---:|
-| mean incoming transfer (log) | −0.955 |
-| distinct payers (in_deg) | +0.701 |
-| largest incoming transfer (log) | +0.658 |
-| payers' mean out-degree (log) | −0.371 |
-| max payers on one day | −0.349 |
-| days with incoming transfers | +0.326 |
-| total inflow KZT (log) | +0.267 |
-| payers' mean pass-through | +0.147 |
-| share of round (10k) amounts | +0.071 |
-| incoming transfer count | −0.019 |
-| payers that are seeds | −0.015 |
-
-Reading: clients paid by several payers over several days tend to send money on; a high average transfer, or payers who themselves
-pay many people (a payout hub), points to an end recipient.
-
-**Calibration.** Balanced class weights train as if forwarding were 50/50, so we shift the logit back by the observed base rate
-(log-odds −0.516). Ranking and AUC are unchanged. **Mean P(forwards) at depth 4 = 0.41, vs an observed base rate of 0.37 at depths 1–3**,
-so about 183 of 444 depth-4 clients likely forward money. With P < 0.3 → `terminal_inferred` (62), P > 0.6 → `truncated_likely_forwarding` (32),
-and the rest (350) stay `truncated_unknown`. Likely forwarders are the candidates for a hop-5 data request (`data_requests.csv`).
-Full model output: `out/truncation_model.json`.
-
-## Clusters
-
-Louvain community detection (`networkx`, `seed=42`, resolution 1.0) on the **undirected** projection of the graph.
-Transfers in both directions between two clients become one edge with weight `log1p(total KZT)`, so a handful of
-large transfers doesn't outweigh many small ones.
-
-Undirected is a deliberate simplification: modularity is defined for undirected graphs and we want "who is
-connected to whom", not flow direction. Direction is used everywhere else (roles, seed-money flow, priority).
-
-Nodes with no transfers at all (19 seeds) get `cluster_id = 0`. On this data we get 44 communities plus cluster 0,
-8 of them with more than one seed, identical across runs.
-
-Each cluster gets a hypothesis from the first matching template (thresholds in config):
-
-| Template | When |
-|---|---|
-| possible collection cell | has a consolidator and ≥ 2 seeds |
-| possible payout network | has a distributor |
-| possible layering chain | ≥ 30% of nodes are transit |
-| likely end-recipient periphery | ≥ 60% of nodes are terminal |
-| loosely linked group | otherwise |
-
-## Priority
-
-The question is "who to look at first". Priority favours nodes that **seed money actually reaches**, that play an
-active role, and whose removal would cut the flow, over nodes that are just big.
-
-```
-priority = seed_factor × Σ weight_k × pct_k        then rescaled so the top node = 1
-```
-
-`pct_k` is the percentile rank of each component over all 2,248 nodes, with zero kept at zero
-(so the ~1,650 nodes with no betweenness don't get 0.5 for it).
-
-| Component | Weight | What it measures |
-|---|---|---|
-| `seed_flow` | 0.30 | log KZT of seed-originated money reaching the node (6 rounds of propagation, each node forwards at most its own outflow) |
-| `role` | 0.25 | role weight × role_score; coordinator 1.0, consolidator 0.9, distributor 0.8, transit 0.6, terminal 0.5, peripheral 0.1 |
-| `seed_sources` | 0.15 | number of seeds with a directed path to the node |
-| `betweenness` | 0.15 | directed betweenness: sits on paths between others |
-| `removal_impact` | 0.15 | share of seed flow to everyone else that disappears if the node is removed. Rerunning the flow is expensive, so it's computed for the top 100 by the other four components and ranked among those; everyone else gets 0 |
-
-`seed_factor = 0.85` for seeds: they are already known and the case asks us to look beyond them. With current weights
-there are no seeds in the top 30.
-
-Each node's `prio_components` column holds the weighted contributions as JSON (the viewer draws them as a bar chart), and
-`why` puts the top 3 into words, e.g.
-`875k KZT of seed money flows in; consolidator (role score 0.78); reachable from 11 seeds`.
-
-The top 30 currently has 9 transit nodes, 8 consolidators, 7 coordinators, 6 distributors and no seeds.
-
-### Resilience check
-
-`out/resilience.csv` removes the top N nodes (N = 0, 5, 10, 20, 50) chosen four ways, and measures the largest
-weakly connected component, the number of components, and the share of seed flow that still reaches depth ≥ 2.
-
-| Removed 50 by | largest component | components | seed flow left |
-|---|---|---|---|
-| nothing | 1,877 | 35 | 100% |
-| priority | 1,449 | 275 | 60% |
-| degree | 620 | 1,015 | 22% |
-| degree, seeds excluded | 1,049 | 730 | 85% |
-| random (mean of 5) | 1,794 | 63 | 94% |
-
-Plain degree wins, and we're reporting that as it is. It wins for two reasons. First, 8 of the 50 highest-degree nodes
-are seeds, and removing a seed removes the money's source, which is not a finding. Second, the 60–116-recipient
-fan-out hubs leave hundreds of single nodes behind when removed, so the graph breaks up without much money moving.
-With seeds excluded, priority cuts seed flow much faster than degree (60% left vs 85%) but breaks the graph up less.
-That's the trade-off we chose: priority follows the money, not the shape of the network.
-
-## Assistant
-
-An optional chat tab in the viewer for questions like «кто собирает деньги с этих пятерых: …». It only reads
-`out/` through graph tools. It never assigns roles or priorities, and every gid it cites is checked against the graph.
-
-**Enable it:** `cp .env.example .env`, set `OPENAI_API_KEY`, and optionally `OPENAI_MODEL` (default `gpt-4.1-mini`)
-and `OPENAI_BASE_URL` for any OpenAI-compatible endpoint. Without a key the tab shows a notice and the rest of the app works.
-From the terminal: `python -m agent.graph "<question>"`.
-
-```mermaid
-flowchart LR
-  Q[question] --> A[agent<br/>LLM + tools]
-  A -- tool calls --> T[ToolNode<br/>graph tools over out/]
-  T --> A
-  A -- answer --> G{guardrail<br/>every cited gid<br/>exists?}
-  G -- no, first time --> A
-  G -- yes --> R[answer +<br/>gid buttons]
-  G -- no, again --> M[unknown gids<br/>masked] --> R
-```
-
-A LangGraph `StateGraph` with at most 8 agent steps. At the last step it has to answer from the tool results it already has.
-The prompt allows tool results only, full gids, hypothesis wording, no personal data, and a reply in the question's language.
-
-| Tool | Returns |
-|---|---|
-| `get_node` | role, evidence, priority and its components, degrees, KZT, seed flow, flags |
-| `neighbors` | direct payers / recipients with KZT, top 25 plus totals |
-| `paths_between` | directed transfer paths between two gids, up to 4 hops |
-| `common_collectors` | who receives from ≥ 2 of a group of gids, with KZT paid straight from the group |
-| `top_nodes` | highest priority, optionally by role or without seeds |
-| `cluster_summary` | size, seeds, internal KZT, top gids, hypothesis |
-| `resilience` | the removal comparison above |
-| `tx_timeline` | daily in vs out KZT |
-
-The tools live in `agent/tools.py` over `agent/store.py`, whose pure query functions are also used by the viewer and
-tested without an LLM (`tests/test_store.py`, including the guardrail with a scripted model). gids are passed as strings
-everywhere, because 18 digits don't survive as JSON floats.
-
-**Guardrail:** after the agent answers, every 15–20 digit number in the answer is looked up. If one isn't a known gid,
-the agent is told which ones and rewrites once. If an unknown gid is still there, it is replaced with `[unknown gid]`.
-
-**Eval** (`make eval` → `out/agent_eval.csv`): 10 questions in Russian and English, generated from the graph with a
-fixed seed, nothing hand-picked. They cover a group's shared collector, a shared recipient of two clients, payers,
-recipients, the biggest recipient, the top 5 and top 3 non-seeds, the middle of a two-hop path, and a cluster's top clients.
-The expected gids are computed from the store.
-
-| gid recall | precision | unknown gids | time per question |
-|---|---|---|---|
-| 1.00 | 0.84 | 0 | ~3 s |
-
-Recall is 10/10. Precision counts cited gids that were neither expected nor in the question, and it is lower only on
-the two "shared collector" questions: the agent names the collector paid by all five first, then also lists real partial
-collectors paid by 3–4 of them.
-
-**Tracing:** set `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY` and `LANGFUSE_BASE_URL` (or `LANGFUSE_HOST`), and each
-question becomes a Langfuse trace. The trace shows every graph node, tool call and LLM generation, with tokens and latency.
-Without the keys tracing is off and nothing else changes.
-
-## Data limitations and how we handle them
-
-| Limitation (from the task) | What we do |
-|---|---|
-| Crawl stops at hop 4: 444 depth-4 nodes have no outgoing transfers | Never called a terminal on that basis alone. A model trained on depth 1–3 predicts whether each one forwards money; only low-probability ones become `terminal_inferred`, the rest are `peripheral` with `truncated_*` detail |
-| Only outgoing transfers were crawled | Balances are never computed; we use distinct payers/recipients and time-aware pass-through instead of a net balance |
-| Seed inflow is under-counted | Seeds never use `in_kzt` or `pass_through`; `pass_through` is NaN for seeds |
-| 5,000 KZT threshold | Structuring below it is invisible; we flag amounts near the threshold and say so in the limitations |
-| 19 seeds missing from edges, 12 only receive | These 31 seeds get `peripheral / seed_no_outgoing`; the 19 with no edges go to cluster 0; all are listed in `data_requests.csv` |
-| 16 weakly connected components | Clusters and resilience are computed per graph, not assuming one network; small components are listed for follow-up |
-| No client attributes | Only structure, amounts and dates are used; nothing is inferred about people |
-| No ground-truth roles | Rules are explicit and documented; we check them for internal consistency (percentiles, stability) instead of accuracy |
-
-## Limitations of the approach
-
-- **Nothing here is a verdict.** Roles, clusters and priorities are hypotheses for an analyst to check, built only from transfer structure, amounts and dates.
-- **No ground truth.** Thresholds come from the data's percentiles and the task's hints (all in `config.yaml` with reasons). They are explainable, not validated.
-- **The graph is a sample around 81 seeds.** Anything that looks central is central *within this crawl*; nodes near the edge (depth 4) are under-observed by construction.
-- **Seed flow is an approximation.** Money is split by KZT share and capped at each node's outflow; we can't tell which incoming tenge became which outgoing tenge.
-- **Undirected clusters.** Louvain ignores direction; two groups that only exchange money one way can still merge.
-- **Priority ≠ disruption.** The resilience check shows degree breaks up the graph faster; priority is tuned to where seed money goes, not to graph shape.
-- **Below 5,000 KZT is invisible**, so structuring under the threshold can't be seen at all.
-- **Truncation model** is trained on depth 1–3 and applied to depth 4, assuming those nodes behave alike; see its AUC and coefficients in `out/truncation_model.json`.
-
-## Scaling to ~1M nodes
-
-At 2,248 nodes everything runs in memory with pandas and networkx in about 10 s. At ~1M nodes and tens of millions of transfers:
-
-| Now | At ~1M nodes |
-|---|---|
-| pandas | Polars or DuckDB for loading and per-node aggregates (out-of-core, columnar) |
-| networkx graph | igraph / graph-tool on one machine; GraphFrames (Spark) if it has to be distributed |
-| exact betweenness | sampled betweenness (k source nodes), or drop it in favour of seed-flow metrics |
-| Louvain | Leiden (igraph / `leidenalg`): faster and gives well-connected communities |
-| seed flow | already a sparse matrix–vector product: the same code, 6 SpMVs over a CSR matrix |
-| removal impact for top 100 | same idea, still top-K only; or approximate with the flow through the node |
-| BFS per seed for `n_seed_sources` | one multi-source BFS with bitsets per seed, or HyperLogLog counters |
-| full recompute | incremental: new transfers update aggregates and only re-propagate from affected nodes; the crawl extends one hop at a time where `data_requests.csv` points |
-| pyvis viewer | WebGL (sigma.js / cosmograph); show ego graphs and clusters, never the whole graph |
+- [Architecture and data contract](docs/design.md)
+- [Methodology, results and limitations](docs/methodology.md)
+- [Development workflow](CONTRIBUTING.md)
+- [Agent working instructions](AGENTS.md)

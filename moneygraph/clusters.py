@@ -1,6 +1,8 @@
-import numpy as np
 import networkx as nx
+import numpy as np
 import pandas as pd
+
+from .data import Context
 
 
 def undirected_projection(G: nx.DiGraph) -> nx.Graph:
@@ -14,10 +16,12 @@ def undirected_projection(G: nx.DiGraph) -> nx.Graph:
     return U
 
 
-def compute(ctx) -> pd.DataFrame:
+def compute(ctx: Context) -> pd.DataFrame:
     cfg = ctx.cfg["clusters"]
     U = undirected_projection(ctx.G)
-    comms = nx.community.louvain_communities(U, weight="weight", resolution=cfg["resolution"], seed=cfg["seed"])
+    comms = nx.community.louvain_communities(
+        U, weight="weight", resolution=cfg["resolution"], seed=cfg["seed"]
+    )
     # stable ids: biggest community first, ties broken by smallest gid
     comms = sorted(comms, key=lambda c: (-len(c), min(c)))
     comp = {g: i for i, c in enumerate(comms, start=1) for g in c}
@@ -49,14 +53,15 @@ def hypothesis(g: pd.DataFrame, internal_kzt: float, cfg: dict) -> str:
         return f"possible layering chain: {share['transit']:.0%} of {n} nodes pass money on; {money} inside"
     if share.get("terminal", 0) >= cfg["periphery_terminal_share"]:
         return f"likely end-recipient periphery: {share['terminal']:.0%} of {n} nodes only receive; {money} inside"
-    return f"loosely linked group: {n} nodes, {n_seed} seed{"s" if n_seed != 1 else ""}, {money} inside"
+    return f"loosely linked group: {n} nodes, {n_seed} seed{'s' if n_seed != 1 else ''}, {money} inside"
 
 
-def summarize(ctx) -> pd.DataFrame:
+def summarize(ctx: Context) -> pd.DataFrame:
     f = ctx.features
     cfg = ctx.cfg["clusters"]
-    e = ctx.edges.merge(f[["gid", "cluster_id"]].rename(columns={"gid": "src", "cluster_id": "cs"}), on="src") \
-                 .merge(f[["gid", "cluster_id"]].rename(columns={"gid": "dst", "cluster_id": "cd"}), on="dst")
+    e = ctx.edges.merge(
+        f[["gid", "cluster_id"]].rename(columns={"gid": "src", "cluster_id": "cs"}), on="src"
+    ).merge(f[["gid", "cluster_id"]].rename(columns={"gid": "dst", "cluster_id": "cd"}), on="dst")
     internal = e[e.cs == e.cd].groupby("cs").sum_kzt.sum()
     rows = []
     for cid, g in f.groupby("cluster_id"):
@@ -67,14 +72,16 @@ def summarize(ctx) -> pd.DataFrame:
         else:
             hyp = hypothesis(g, kzt, cfg)
         rc = g.loc[g.role != "peripheral", "role"].value_counts().head(3)
-        rows.append({
-            "cluster_id": int(cid),
-            "n_nodes": len(g),
-            "n_seed": int(g.is_seed.sum()),
-            "sum_kzt_internal": kzt,
-            "top_gids": ";".join(map(str, top)),
-            "hypothesis": hyp,
-            "dominant_roles": ";".join(f"{r}:{c}" for r, c in rc.items()),
-            "seed_flow_in": float(g.seed_flow_in.sum()),
-        })
+        rows.append(
+            {
+                "cluster_id": int(cid),
+                "n_nodes": len(g),
+                "n_seed": int(g.is_seed.sum()),
+                "sum_kzt_internal": kzt,
+                "top_gids": ";".join(map(str, top)),
+                "hypothesis": hyp,
+                "dominant_roles": ";".join(f"{r}:{c}" for r, c in rc.items()),
+                "seed_flow_in": float(g.seed_flow_in.sum()),
+            }
+        )
     return pd.DataFrame(rows)

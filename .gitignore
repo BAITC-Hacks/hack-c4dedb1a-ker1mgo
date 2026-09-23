@@ -2,9 +2,20 @@
 __pycache__/
 *.pyc
 .pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 out/*
-!out/*.csv
+# Reviewed submission artifacts; keep runtime caches and evaluations local.
+!out/clusters.csv
+!out/data_requests.csv
+!out/nodes_roles.csv
+!out/resilience.csv
+!out/top_nodes.csv
 !out/truncation_model.json
 .env
+.env.*
+!.env.example
 .ipynb_checkpoints/
 .DS_Store
+next-session-prompt.md

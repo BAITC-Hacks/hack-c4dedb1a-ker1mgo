@@ -2,8 +2,10 @@ from collections import deque
 
 import pandas as pd
 
+from .data import Context
 
-def fifo_fast_share(tx_in, tx_out, days):
+
+def fifo_fast_share(tx_in: pd.DataFrame, tx_out: pd.DataFrame, days: int) -> float:
     """Share of inflow KZT matched FIFO by outflow sent within `days` after it arrived.
 
     Dates have no time of day, so same-day in and out counts as matched.
@@ -12,7 +14,7 @@ def fifo_fast_share(tx_in, tx_out, days):
     if total <= 0 or tx_out.empty:
         return 0.0
     window = pd.Timedelta(days=days)
-    lots = deque()                      # [date, remaining amount], oldest first
+    lots = deque()  # [date, remaining amount], oldest first
     ins = iter(tx_in.sort_values("date")[["date", "sum_kzt"]].itertuples(index=False))
     nxt = next(ins, None)
     matched = 0.0
@@ -21,7 +23,7 @@ def fifo_fast_share(tx_in, tx_out, days):
             lots.append([nxt.date, nxt.sum_kzt])
             nxt = next(ins, None)
         while lots and d - lots[0][0] > window:
-            lots.popleft()              # too old to count as fast transit
+            lots.popleft()  # too old to count as fast transit
         while amt > 0 and lots:
             take = min(amt, lots[0][1])
             matched += take
@@ -47,7 +49,7 @@ def node_flags(sent, all_tx, c):
     return ";".join(flags)
 
 
-def compute(ctx) -> pd.DataFrame:
+def compute(ctx: Context) -> pd.DataFrame:
     cfg = ctx.cfg["temporal"]
     tx = ctx.tx
     by_dst = dict(tuple(tx.groupby("dst")))
@@ -58,12 +60,16 @@ def compute(ctx) -> pd.DataFrame:
     for g in ctx.nodes.gid:
         tin, tout = by_dst.get(g, empty), by_src.get(g, empty)
         both = pd.concat([tin, tout])
-        rows.append({
-            "gid": g,
-            "fast_pass_share": fifo_fast_share(tin, tout, cfg["fast_pass_days"]),
-            "out_before_in": bool(len(tin) and len(tout) and tout.date.min() < tin.date.min()),
-            "max_same_day_payers": int(tin.groupby("date").src.nunique().max()) if len(tin) else 0,
-            "active_days": int(both.date.nunique()),
-            "flags": node_flags(tout, both, cfg["flags"]),
-        })
+        rows.append(
+            {
+                "gid": g,
+                "fast_pass_share": fifo_fast_share(tin, tout, cfg["fast_pass_days"]),
+                "out_before_in": bool(len(tin) and len(tout) and tout.date.min() < tin.date.min()),
+                "max_same_day_payers": int(tin.groupby("date").src.nunique().max())
+                if len(tin)
+                else 0,
+                "active_days": int(both.date.nunique()),
+                "flags": node_flags(tout, both, cfg["flags"]),
+            }
+        )
     return pd.DataFrame(rows)

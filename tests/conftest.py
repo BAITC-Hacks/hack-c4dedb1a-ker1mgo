@@ -1,20 +1,17 @@
 import time
-from pathlib import Path
 
 import pandas as pd
 import pytest
 
+from moneygraph.paths import DATA_DIR
 from moneygraph.run import run
-
-ROOT = Path(__file__).resolve().parents[1]
-DATA = ROOT / "project_docs" / "data"
 
 
 @pytest.fixture(scope="session")
 def pipeline(tmp_path_factory):
     out = tmp_path_factory.mktemp("out")
     t0 = time.perf_counter()
-    ctx = run(DATA, out, verbose=False)
+    ctx = run(DATA_DIR, out, verbose=False)
     elapsed = time.perf_counter() - t0
     return {
         "ctx": ctx,
