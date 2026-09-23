@@ -31,7 +31,7 @@ Each milestone ends with a push (see "When to push" in [CONTRIBUTING.md](../../C
   *Done when:* role counts look sane (no single role except peripheral/terminal above ~60%) and you can explain 3 random gids aloud.
   **Push.**
 
-- [ ] **A5 · tests/test_rules.py** (target 2:15, checkpoint 2)
+- [x] **A5 · tests/test_rules.py** (target 2:15, checkpoint 2)
   One small toy DiGraph per role; depth-4 sink is never `terminal_observed`; seed role never depends on pass-through.
   **Push. Checkpoint 2.**
 
