@@ -57,8 +57,8 @@ and no depth feature. Payer role is not available at this step, so payer out-deg
 | incoming transfer count | −0.019 |
 | payers that are seeds | −0.015 |
 
-Reading: clients who get many small-to-medium transfers from several payers over several days tend to send money on; a few large transfers
-from a hub that pays many people look like an end recipient.
+Reading: clients paid by several payers over several days tend to send money on; a high average transfer, or payers who themselves
+pay many people (a payout hub), points to an end recipient.
 
 **Calibration.** Balanced class weights train as if forwarding were 50/50, so we shift the logit back by the observed base rate
 (log-odds −0.516). Ranking and AUC are unchanged. **Mean P(forwards) at depth 4 = 0.41, vs an observed base rate of 0.37 at depths 1–3**,
