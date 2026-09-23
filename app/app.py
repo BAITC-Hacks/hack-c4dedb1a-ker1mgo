@@ -87,8 +87,7 @@ def network_page():
         G = store.cluster_graph(cid)
         row = store.cluster_summary(cid)
         if len(row):
-            st.caption(f"{row.iloc[0].hypothesis} · {int(row.iloc[0].n_nodes)} nodes, "
-                       f"{int(row.iloc[0].n_seed)} seeds")
+            st.caption(row.iloc[0].hypothesis)
         if len(G) < (f.cluster_id == cid).sum():
             st.caption(f"showing the top {len(G)} nodes by priority")
         st.iframe(render(G, f, focus=st.session_state.get("gid"), color_by=color_by), height=670)
