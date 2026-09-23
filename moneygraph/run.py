@@ -2,7 +2,7 @@ import argparse
 import time
 from pathlib import Path
 
-from . import clusters, export, features, priority, roles, taint, temporal, truncation
+from . import clusters, data_requests, export, features, priority, roles, taint, temporal, truncation
 from .data import load_context
 
 # order matters: each step can read ctx.features produced by the ones before it
@@ -25,6 +25,8 @@ def run(data_dir, out_dir, verbose=True):
     cl = clusters.summarize(ctx)
     res = priority.resilience(ctx)
     export.write(ctx.features, cl, res, Path(out_dir), ctx.cfg["priority"]["top_n"])
+    truncation.save(ctx, out_dir)
+    data_requests.build(ctx).to_csv(Path(out_dir) / "data_requests.csv", index=False)
 
     if verbose:
         f = ctx.features
