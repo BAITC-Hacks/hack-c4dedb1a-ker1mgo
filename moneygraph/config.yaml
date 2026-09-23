@@ -32,8 +32,11 @@ truncation:
   min_auc: 0.6                 # below this we don't trust the model and mark depth-4 sinks unknown
 
 clusters:
-  seed: 42
-  resolution: 1.0
+  seed: 42                     # fixed so cluster ids are the same on every run
+  resolution: 1.0              # default modularity; weighted run gives 44 communities, 8 with > 1 seed
+  collection_min_seeds: 2      # consolidator fed by several seeds = collection cell
+  layering_transit_share: 0.3  # a third of the group just passes money on
+  periphery_terminal_share: 0.6
 
 priority:
   weights:
