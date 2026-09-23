@@ -1,9 +1,10 @@
 // Native SVG: deliberately no package imports, remote scripts, or runtime CDN.
-export default function renderGraph(component) {
+function drawGraph(component) {
   const {parentElement, data, setTriggerValue, key} = component;
   const root = parentElement.querySelector('.mg-graph');
   root.replaceChildren();
   root.style.height = `${data.height || 520}px`;
+  const width = root.clientWidth || 800, height = data.height || 520;
   const ns = 'http://www.w3.org/2000/svg';
   const create = (name, attrs = {}, text) => {
     const node = document.createElementNS(ns, name);
@@ -11,8 +12,8 @@ export default function renderGraph(component) {
     if (text !== undefined) node.textContent = text;
     return node;
   };
-  const svg = create('svg', {class: 'mg-canvas', viewBox: '0 0 1000 620',
-    tabindex: '0', role: 'group', 'aria-label': 'Directed transfer network. Tab to a client and press Enter to open its dossier. Arrow keys pan. Plus and minus zoom.'});
+  const svg = create('svg', {class: 'mg-canvas', viewBox: `0 0 ${width} ${height}`,
+    tabindex: '0', role: 'group', 'aria-label': 'Граф переводов. Tab — выбрать клиента, Enter — открыть досье. Стрелки — сдвиг, плюс и минус — масштаб.'});
   const defs = create('defs');
   // The component key is unique per mounted instance, including shadow roots.
   const arrowId = `moneygraph-arrow-${String(key || 'network').replace(/[^a-zA-Z0-9_-]/g, '')}`;
@@ -28,20 +29,20 @@ export default function renderGraph(component) {
   const toolbar = document.createElement('div');
   toolbar.className = 'mg-toolbar';
   toolbar.setAttribute('role', 'group');
-  toolbar.setAttribute('aria-label', 'Graph view controls');
+  toolbar.setAttribute('aria-label', 'Управление графом');
   const tooltip = document.createElement('div');
   tooltip.className = 'mg-tooltip';
   tooltip.setAttribute('role', 'tooltip');
   tooltip.hidden = true;
   const help = document.createElement('div');
   help.className = 'mg-help';
-  help.textContent = 'Click a client to inspect · Drag to pan · + / − to zoom · Dark outline: seed · Dashed ring: depth 4';
+  help.textContent = 'Нажмите на узел — откроется досье. Перетаскивайте фон для сдвига. Обводка — seed; пунктир — граница данных.';
   root.append(toolbar, tooltip, help);
 
   let scale = 1, panX = 0, panY = 0, drag = null;
   let suppressClick = false;
   const applyTransform = () => viewport.setAttribute('transform', `translate(${panX} ${panY}) scale(${scale})`);
-  const zoom = (factor, x = 500, y = 310) => {
+  const zoom = (factor, x = width / 2, y = height / 2) => {
     const next = Math.max(.35, Math.min(5, scale * factor));
     panX = x - (x - panX) * next / scale;
     panY = y - (y - panY) * next / scale;
@@ -51,7 +52,7 @@ export default function renderGraph(component) {
   };
   const reset = () => {scale = 1; panX = 0; panY = 0; applyTransform(); tooltip.hidden = true;};
   for (const [label, title, action] of [
-    ['+', 'Zoom in', () => zoom(1.25)], ['−', 'Zoom out', () => zoom(.8)], ['Reset', 'Reset graph view', reset],
+    ['+', 'Приблизить', () => zoom(1.25)], ['−', 'Отдалить', () => zoom(.8)], ['Сброс', 'Сбросить вид графа', reset],
   ]) {
     const button = document.createElement('button');
     button.type = 'button';
@@ -78,13 +79,13 @@ export default function renderGraph(component) {
   };
   const hideTooltip = () => {tooltip.hidden = true;};
 
-  const nodes = new Map(data.nodes.map(node => [node.id, {...node, px: node.x * 1000, py: node.y * 620}]));
+  const nodes = new Map(data.nodes.map(node => [node.id, {...node, radius: data.layout === 'ego' && data.nodes.length > 7 && !node.focus ? node.radius * .64 : node.radius, px: data.layout === 'ego' ? Math.max(100, Math.min(width - 100, node.x * width)) : node.x * width, py: 40 + node.y * (height - 85)}]));
   if (data.layout === 'ego' && nodes.size > 1 && data.focus) {
-    viewport.append(create('text', {x: 190, y: 52, 'text-anchor': 'middle', class: 'mg-lane'}, 'Payers'));
-    viewport.append(create('text', {x: 500, y: 52, 'text-anchor': 'middle', class: 'mg-lane'}, 'Focus'));
-    viewport.append(create('text', {x: 810, y: 52, 'text-anchor': 'middle', class: 'mg-lane'}, 'Recipients'));
+    viewport.append(create('text', {x: Math.max(100, width * .19), y: 65, 'text-anchor': 'middle', class: 'mg-lane'}, 'Плательщики'));
+    viewport.append(create('text', {x: width * .5, y: 65, 'text-anchor': 'middle', class: 'mg-lane'}, 'Клиент'));
+    viewport.append(create('text', {x: Math.min(width - 100, width * .81), y: 65, 'text-anchor': 'middle', class: 'mg-lane'}, 'Получатели'));
   }
-  if (!nodes.size) viewport.append(create('text', {x: 500, y: 310, 'text-anchor': 'middle', class: 'mg-empty'}, 'No clients in this view'));
+  if (!nodes.size) viewport.append(create('text', {x: width / 2, y: height / 2, 'text-anchor': 'middle', class: 'mg-empty'}, 'В этом представлении нет клиентов'));
   const pairs = new Set(data.edges.map(edge => `${edge.source}:${edge.target}`));
   for (const edge of data.edges) {
     const from = nodes.get(edge.source), to = nodes.get(edge.target);
@@ -118,15 +119,20 @@ export default function renderGraph(component) {
   for (const node of nodes.values()) {
     const group = create('g', {class: `mg-node${node.focus ? ' is-focus' : ''}`,
       transform: `translate(${node.px} ${node.py})`, tabindex: '0', role: 'button',
-      'aria-label': `${node.tooltip}. Open dossier.`, 'aria-pressed': String(node.focus), 'data-gid': node.id});
+      'aria-label': `${node.tooltip}. Открыть досье.`, 'aria-pressed': String(node.focus), 'data-gid': node.id});
     group.append(create('title', {}, node.tooltip));
     group.append(create('circle', {r: node.radius + 7, class: 'focus-ring'}));
     group.append(create('circle', {r: node.radius, fill: node.color,
       stroke: node.seed ? '#18333F' : '#F6F9FA', 'stroke-width': node.seed ? 3 : 1.5}));
     if (node.boundary) group.append(create('circle', {r: node.radius + 3, fill: 'none',
       stroke: '#18333F', 'stroke-width': 1.5, 'stroke-dasharray': '4 3'}));
-    group.append(create('text', {x: 0, y: node.radius + 18, 'text-anchor': 'middle',
-      class: `node-label${node.label_visible ? '' : ' hidden-label'}`}, node.label));
+    const laneLabel = data.layout === 'ego' && !node.focus;
+    const left = node.x < .5;
+    const labelX = laneLabel ? (left ? -1 : 1) * (node.radius + 8) : 0;
+    const visible = node.label_visible && (data.nodes.length <= 20 || node.focus);
+    group.append(create('text', {x: labelX, y: laneLabel ? 4 : node.radius + 18,
+      'text-anchor': laneLabel ? (left ? 'end' : 'start') : 'middle',
+      class: `node-label${visible ? '' : ' hidden-label'}`}, node.label));
     const select = () => {
       if (suppressClick) return;
       hideTooltip();
@@ -186,4 +192,22 @@ export default function renderGraph(component) {
     svg.removeEventListener('wheel', wheel);
     root.replaceChildren();
   };
+}
+
+// Rebuild only when the available width changes (sidebar or viewport resize).
+// SVG units stay physical pixels, keeping identifiers readable on laptops.
+export default function renderGraph(component) {
+  const root = component.parentElement.querySelector('.mg-graph');
+  let width = root.clientWidth;
+  let cleanup = drawGraph(component);
+  const observer = new ResizeObserver(() => {
+    const next = root.clientWidth;
+    if (next && Math.abs(next - width) > 1) {
+      width = next;
+      cleanup();
+      cleanup = drawGraph(component);
+    }
+  });
+  observer.observe(root);
+  return () => {observer.disconnect(); cleanup();};
 }

@@ -1,4 +1,6 @@
-from moneygraph.formatting import fmt_kzt as fmt_kzt
+from functools import partial
+
+from moneygraph.formatting import fmt_kzt as format_kzt
 
 ROLE_COLORS = {
     "coordinator": "#9B1C3A",
@@ -9,12 +11,12 @@ ROLE_COLORS = {
     "peripheral": "#8F9996",
 }
 ROLE_LABELS = {
-    "coordinator": "Signs of coordination",
-    "consolidator": "Signs of consolidation",
-    "distributor": "Signs of distribution",
-    "transit": "Signs of transit",
-    "terminal": "Possible end recipient",
-    "peripheral": "Insufficient role evidence",
+    "coordinator": "Признаки координации",
+    "consolidator": "Признаки консолидации",
+    "distributor": "Признаки распределения",
+    "transit": "Признаки транзита",
+    "terminal": "Возможный конечный получатель",
+    "peripheral": "Недостаточно признаков роли",
 }
 CLUSTER_PALETTE = [
     "#176B80",
@@ -29,3 +31,6 @@ CLUSTER_PALETTE = [
     "#647583",
 ]
 INK, ACCENT, MUTED, LINE, MIST = "#18333F", "#176B80", "#526A76", "#CAD7DD", "#EEF3F5"
+
+
+fmt_kzt = partial(format_kzt, locale="ru")
