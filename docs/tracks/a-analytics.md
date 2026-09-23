@@ -19,7 +19,7 @@ Each milestone ends with a push (see "When to push" in [CONTRIBUTING.md](../../C
   *Done when:* about 429 nodes have `fast_pass_share > 0`.
   **Push.**
 
-- [ ] **A3 · taint.py** (target 1:15, checkpoint 1)
+- [x] **A3 · taint.py** (target 1:15, checkpoint 1)
   Sparse row-normalized matrix, `rounds` from config, `s_out = min(s_in, out_kzt)` for non-seeds.
   `n_seed_sources` via BFS from each seed. Expose the propagation as a function B can call with a node removed.
   *Done when:* total seed flow reaching terminals and depth-4 nodes ≤ total seed out_kzt, and the top 10 by `seed_flow_in` make sense by eye.
