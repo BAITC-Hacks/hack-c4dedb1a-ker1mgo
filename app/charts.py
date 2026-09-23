@@ -2,16 +2,18 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from graphview import ROLE_COLORS
+from app.theme import ROLE_COLORS, ACCENT, INK
 
 # first three slots of a colour-blind-checked categorical palette
-BLUE, ORANGE, AQUA = "#2a78d6", "#eb6834", "#1baf7a"
+BLUE, ORANGE, AQUA = "#176B80", "#D0632B", "#517C73"
 GRID = "rgba(128,128,128,0.18)"
 
 
 def _style(fig, height):
     fig.update_layout(height=height, margin=dict(l=10, r=10, t=30, b=10), bargap=0.25, bargroupgap=0.08,
-                      legend=dict(orientation="h", y=1.08, x=0), hovermode="x unified")
+                      legend=dict(orientation="h", y=1.08, x=0), hovermode="x unified",
+                      font=dict(family="Ubuntu, sans-serif", color=INK, size=12),
+                      paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
     fig.update_xaxes(showgrid=False)
     fig.update_yaxes(gridcolor=GRID, zeroline=False)
     return fig
@@ -52,6 +54,27 @@ def role_counts(counts):
     fig = _style(fig, 60 + 34 * len(counts))
     fig.update_layout(hovermode="closest")
     return fig
+
+
+def priority_waterfall(components, final_score, audit=None):
+    audit = audit or {}
+    components = audit.get("components", components)
+    labels = {"seed_flow": "Seed money", "role": "Role evidence", "seed_sources": "Seed sources",
+              "betweenness": "Bridging", "removal_impact": "Removal impact"}
+    values = list(components.values())
+    names = [labels.get(k, k.replace("_", " ")) for k in components]
+    subtotal = sum(values)
+    seed_factor = audit.get("seed_factor", 1.0)
+    names.extend(["Seed adjustment", "Rescaling", "Priority"])
+    values.extend([subtotal * (seed_factor - 1), final_score - subtotal * seed_factor, final_score])
+    fig = go.Figure(go.Waterfall(x=names, y=values, measure=["relative"] * (len(values)-1) + ["total"],
+                                text=[f"{v:.3f}" for v in values], textposition="outside",
+                                increasing={"marker": {"color": ACCENT}},
+                                decreasing={"marker": {"color": ORANGE}},
+                                totals={"marker": {"color": INK}}, connector={"line": {"color": "#CAD7DD"}}))
+    fig.update_yaxes(title_text="Contribution to final priority", range=[0, max(1.1, final_score*1.15)])
+    fig.update_xaxes(tickangle=-25)
+    return _style(fig, 350)
 
 
 RES_METRICS = [("largest_wcc", "largest component"), ("n_components", "components"),
