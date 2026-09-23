@@ -220,7 +220,6 @@ Benchmark outputs are a separate snapshot: rerun `make bench` (or the Docker com
 
 Million-node performance has **not** been measured. These are engineering directions to validate next:
 
-
 | Now | At ~1M nodes |
 |---|---|
 | pandas | Polars or DuckDB for loading and per-node aggregates (out-of-core, columnar) |
