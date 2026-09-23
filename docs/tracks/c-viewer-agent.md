@@ -5,10 +5,10 @@ Design: [../design.md](../design.md) (sections Assistant and Viewer). Build agai
 
 Each milestone ends with a push (see "When to push" in [CONTRIBUTING.md](../../CONTRIBUTING.md)). Tick the box in the same push.
 
-- [ ] **C1 · environment** (target 0:20)
+- [x] **C1 · environment** (target 0:20)
   `.env` from `.env.example` (never commit it). Confirm that a pyvis graph renders inside `st.components.v1.html` and that `make run && make app` shows the placeholder.
 
-- [ ] **C2 · agent/store.py + network view** (target 1:15, checkpoint 1)
+- [x] **C2 · agent/store.py + network view** (target 1:15, checkpoint 1)
   `GraphStore` loads `out/features.parquet`, `out/clusters.csv`, edges and transactions; pure query functions (`get_node`, `neighbors`, `paths_between`,
   `common_collectors`, `top_nodes`, `cluster_summary`, `resilience`, `tx_timeline`) shared by the app and the agent.
   App: sidebar gid search, ego graph radius 1–2 (arrows, width ∝ log KZT, role colours from design, seeds outlined, depth-4 dashed), top-list page.
