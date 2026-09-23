@@ -103,7 +103,7 @@ Each node's `prio_components` column holds the weighted contributions as JSON (t
 `why` puts the top 3 into words, e.g.
 `875k KZT of seed money flows in; consolidator (role score 0.78); reachable from 11 seeds`.
 
-The top 30 currently has 13 coordinators, 4 consolidators, 4 distributors, 9 transit nodes and no seeds.
+The top 30 currently has 12 transit nodes, 7 coordinators, 6 consolidators, 5 distributors and no seeds.
 
 ### Resilience check
 
@@ -113,7 +113,7 @@ weakly connected component, the number of components, and the share of seed flow
 | Removed 50 by | largest component | components | seed flow left |
 |---|---|---|---|
 | nothing | 1,877 | 35 | 100% |
-| priority | 1,428 | 286 | 59% |
+| priority | 1,430 | 287 | 59% |
 | degree | 620 | 1,015 | 22% |
 | degree, seeds excluded | 1,049 | 730 | 85% |
 | random (mean of 5) | 1,794 | 63 | 94% |

@@ -22,7 +22,7 @@ Each milestone ends with a push (see "When to push" in [CONTRIBUTING.md](../../C
   `prio_components` as JSON, `why` naming the top 2–3 contributions with numbers. `resilience()`: top-N by priority vs degree vs random (mean of 5 draws), N ∈ {0, 5, 10, 20, 50}.
   *Done when:* the top 30 by priority is mostly non-seed consolidators, distributors and coordinators, and the priority curve in resilience drops faster than the degree curve (if not, write down why).
   **Push. Checkpoint 2.**
-  *Result:* top 30 = 13 coordinators, 4 consolidators, 4 distributors, 9 transit, 0 seeds. Degree beats priority on both curves, for two reasons:
+  *Result:* top 30 = 12 transit, 7 coordinators, 6 consolidators, 5 distributors, 0 seeds (after A8). Degree beats priority on both curves, for two reasons:
   8 of the degree top 50 are seeds, so it removes the money's sources (priority discounts seeds on purpose), and the 60-116 recipient hubs
   shatter into singletons when removed. Against `degree_nonseed`, priority cuts seed flow faster (59% left at N=50 vs 85%) but still fragments less.
   Priority targets money flow, not topology.
