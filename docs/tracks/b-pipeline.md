@@ -23,7 +23,7 @@ Each milestone ends with a push (see "When to push" in [CONTRIBUTING.md](../../C
   *Done when:* the top 30 by priority is mostly non-seed consolidators, distributors and coordinators, and the priority curve in resilience drops faster than the degree curve (if not, write down why).
   **Push. Checkpoint 2.**
 
-- [ ] **B5 · data_requests.csv** (target 2:40)
+- [x] **B5 · data_requests.csv** (moved to track C as C8)
   Rows with `gid, reason, suggested_request`: likely-forwarding depth-4 nodes (request hop 5), seeds without outgoing transfers, seeds needing their incoming transfers, small isolated components.
   **Push.**
 
@@ -36,3 +36,15 @@ Each milestone ends with a push (see "When to push" in [CONTRIBUTING.md](../../C
 - [ ] **B7 · clean-clone check** (3:50)
   Fresh directory, fresh venv, follow the README literally, time it, and fix anything that needed knowledge not written down.
   **Push**, then tell the team `main` is final.
+
+## Round 2 (from review)
+
+B5 moved to track C (`moneygraph/data_requests.py`, already wired into `run.py`). `run.py` now also writes `out/truncation_model.json`.
+
+> **B4 is unblocked: do it now.** Use `taint.propagate(G, seeds, rounds, removed={gid})` for removal impact (it's built for that).
+> Expect the roles from A8/A9 to shift a little; priority must only read columns, never role-specific thresholds.
+
+- [ ] **B8 · README fill-in** (by 3:30)
+  Priority formula plus weights and the resilience result (priority vs degree vs random) · paste A's Roles/Truncation text · "Limitations of the approach" · "Scaling to ~1M nodes" ·
+  outputs table: add `data_requests.csv`, `truncation_model.json`, `agent_eval.csv`. Leave the "Assistant" section to C.
+  **Push** each section as it's done.

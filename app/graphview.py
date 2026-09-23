@@ -48,7 +48,7 @@ def render(G, features, focus=None, color_by="role", height=650):
         vol = float(row["in_kzt"]) + float(row["out_kzt"])
         seed = bool(row["is_seed"])
         opts = dict(
-            label=str(gid)[-6:],
+            label=str(gid)[-10:],  # last 10 digits are unique across all 2,248 gids
             title=(f"{gid}\nrole: {row['role']} ({row.get('role_detail', '')})\ndepth {row['depth']}"
                    f"{' · seed' if seed else ''}\npriority {row['priority_score']:.2f}\n"
                    f"in {fmt_kzt(row['in_kzt'])} · out {fmt_kzt(row['out_kzt'])} KZT\n{row['evidence']}"),

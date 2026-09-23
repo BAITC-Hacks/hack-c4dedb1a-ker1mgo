@@ -44,3 +44,24 @@ Each milestone ends with a push (see "When to push" in [CONTRIBUTING.md](../../C
 - [ ] **A7 · freeze and demo prep** (3:00)
   Pick 3 walk-through gids (a consolidator, a distributor, an inferred terminal), write 30 seconds of explanation for each, and help B with the README role section.
   **Push** any fixes.
+
+## Round 2 (from review)
+
+- [ ] **A8 · tighten coordinator** (next, 20 min)
+  67 nodes are coordinators today, because `n_seed_sources ≥ 2` holds for 1,635 of 2,248 nodes (73%) and so doesn't discriminate.
+  Measured options: `min_seed_sources: 9` (p90) → 20 nodes · `min_pays_seed: 2` → 22 · betweenness ≥ p98 required → 14.
+  Pick one (or a combination) that gives roughly 15–25 nodes and write the reason next to it in `config.yaml`.
+  *Done when:* 15–25 coordinators, and you can defend the top 3 aloud.
+  **Push.**
+
+- [ ] **A9 · transit sanity + evidence wording** (20 min)
+  88 of 189 transit nodes have `pass_through > 2` (e.g. "116k in, 507k out (439%)"): they get most of their money from outside the graph, so "passes money on" is a weak claim.
+  Add `transit.max_pass_through_fast: 2.0` to config; the fast-pass branch only applies at or below it. Nodes above it fall to `weak_signal` with transit in `secondary_roles`.
+  Evidence shows `betweenness 0.0000` for 18 coordinators: print the percentile instead ("betweenness top 2%").
+  Only print the percentile table in `features.py` when running verbosely (it currently prints inside tests).
+  *Done when:* no evidence line contains `0.0000`, and every transit node has pass_through ≤ 2 or is justified by the band rule.
+  **Push.**
+
+- [ ] **A10 · README "Roles" and "Truncation" sections, as text for B** (by 3:15)
+  Rule table with the final thresholds and reasons, plus role counts. Truncation: n_train 1,723, AUC, the coefficient table, and mean P at depth 4 vs the observed base rate (from `out/truncation_model.json`).
+  Send it to B in chat (B owns README.md), or push it to your branch as `docs/roles_section.md` and B pastes it in.
