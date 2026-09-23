@@ -1,0 +1,41 @@
+# Track C: viewer and assistant
+
+Owns: `app/`, `agent/`, `tests/test_store.py`. Reads only `out/` and `project_docs/data/`, and never imports `moneygraph` internals except for loading.
+Design: [../design.md](../design.md) (sections Assistant and Viewer). Build against the stub outputs first; they have the final column names.
+
+Each milestone ends with a push (see "When to push" in [CONTRIBUTING.md](../../CONTRIBUTING.md)). Tick the box in the same push.
+
+- [ ] **C1 · environment** (target 0:20)
+  `.env` from `.env.example` (never commit it). Confirm that a pyvis graph renders inside `st.components.v1.html` and that `make run && make app` shows the placeholder.
+
+- [ ] **C2 · agent/store.py + network view** (target 1:15, checkpoint 1)
+  `GraphStore` loads `out/features.parquet`, `out/clusters.csv`, edges and transactions; pure query functions (`get_node`, `neighbors`, `paths_between`,
+  `common_collectors`, `top_nodes`, `cluster_summary`, `resilience`, `tx_timeline`) shared by the app and the agent.
+  App: sidebar gid search, ego graph radius 1–2 (arrows, width ∝ log KZT, role colours from design, seeds outlined, depth-4 dashed), top-list page.
+  *Done when:* any gid shows its directed neighbours in under 2 s.
+  **Push. Checkpoint 1.**
+
+- [ ] **C3 · node card + overview** (target 1:45)
+  Card: role, score, evidence, secondary roles, priority breakdown bar (`prio_components`), daily in vs out timeline (plotly), counterparties, flags.
+  Overview: KPIs, role counts, clusters table with hypotheses, resilience chart.
+  **Push.**
+
+- [ ] **C4 · tools + LangGraph agent** (target 2:15, checkpoint 2)
+  `agent/tools.py` wraps store functions as tools. `agent/graph.py`: explicit `StateGraph` (agent → ToolNode loop → guardrail node that verifies every cited gid exists → answer), max 8 steps,
+  `ChatOpenAI(model=OPENAI_MODEL, base_url=OPENAI_BASE_URL or None)`, Langfuse `CallbackHandler` when keys are set. `tests/test_store.py` on a toy graph without an LLM.
+  *Done when:* "кто собирает деньги с этих пятерых: …" returns cited gids that all exist.
+  **Push. Checkpoint 2.**
+
+- [ ] **C5 · assistant tab + cards** (target 2:40)
+  Chat with history in `session_state`; cited gids as buttons that open the card. `agent/cards.py`: deterministic fact card, optional LLM prose cached in `out/cards/`.
+  Without `OPENAI_API_KEY` the tab shows a short notice and the rest of the app works.
+  **Push.**
+
+- [ ] **C6 · agent/eval.py** (target 3:00)
+  About 10 questions whose answers are computed from the graph; score gid recall and zero unknown gids; write `out/agent_eval.csv`.
+  Send the score and a Langfuse trace screenshot to B for the README.
+  **Push. Freeze.**
+
+- [ ] **C7 · demo driver** (3:40)
+  Pre-select the demo gids, test the app without a key, and record a backup screen capture of the assistant answering.
+  **Push** any fixes.
