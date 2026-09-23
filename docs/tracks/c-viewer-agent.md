@@ -52,12 +52,12 @@ C is ahead of schedule, so it picks up data requests (was B5) and proof for the 
   *Done when:* the file has rows for every category with counts printed by `make run`, and `make test` is green.
   **Push.**
 
-- [ ] **C9 · tracing and eval with real keys** (30 min)
+- [x] **C9 · tracing and eval with real keys** (30 min)
   `pip install -r requirements.txt` (adds `langchain`, which `langfuse.langchain` needs; without it tracing silently turned off).
   Run the demo question from the app and confirm the trace appears in Langfuse. Then run `make eval` after B4 lands (the top-N questions depend on real priority).
   *Done when:* `out/agent_eval.csv` exists, you have a trace screenshot, and the recall/precision numbers are posted in chat.
   **Push** any fixes.
 
-- [ ] **C10 · README "Assistant" section** (by 3:15)
+- [x] **C10 · README "Assistant" section** (by 3:15)
   How to enable it (`.env`), the graph diagram (agent → tools → guardrail), the tool list, the guardrail behaviour, the eval method and score, and Langfuse. Keep it short.
   **Push.**
