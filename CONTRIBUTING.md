@@ -1,72 +1,54 @@
-# Working on Money graph
+# Contributing
 
-## Setup and checks
+## Setup
 
-Use Python 3.12. Create `.venv` as shown in the README, then install the development
-requirements (they include runtime dependencies):
+Use Python 3.12. Create `.venv` as in the README, then install the development tools
+(they include the runtime dependencies):
 
 ```bash
 .venv/bin/python -m pip install -r requirements-dev.txt
-make check
+make check          # Ruff lint, formatting check and the offline test suite
 ```
 
-`make check` runs Ruff lint, formatting checks and the offline test suite. Tests run
-the pipeline in a temporary directory and never need API credentials. Run
-`make format` after code changes, then the focused tests for the affected behavior.
-Finish with `make check` once the combined changes are ready.
-
-Inspect the branch and working tree before editing. Fetch the remote and sync the
-intended base before starting a cleanup or feature branch. Preserve unrelated local
-work; do not overwrite output files or switch branches blindly. Commit and push only
-when requested, with focused diffs and short, descriptive messages.
+Tests run the pipeline in a temporary directory and never need API keys. Run
+`make format` after code changes.
 
 ## Where code belongs
 
-| Area | Responsibility | Focused checks |
+| Area | Responsibility | Tests |
 |---|---|---|
-| `moneygraph/` | Loading, analytics, rules, configuration and export | `tests/test_rules.py`, `tests/test_outputs.py`, `tests/test_no_hardcode.py`, `tests/test_explainability.py`, `tests/test_scale.py` |
-| `agent/` | Graph queries, fact cards, citations and optional model integration | `tests/test_store.py`, `tests/test_agent.py` |
-| `app/` | Screen rendering, navigation, charts and cached resources | `tests/test_app.py`, `tests/test_graphview.py` |
-| Root tooling and `docs/` | Dependencies, developer commands and shared contracts | `make check`, command/document link checks as relevant |
+| `moneygraph/` | Loading, analytics, rules, configuration and export | `test_rules.py`, `test_outputs.py`, `test_no_hardcode.py`, `test_explainability.py`, `test_scale.py` |
+| `agent/` | Read-only graph queries, fact cards, citations and the optional assistant | `test_store.py`, `test_agent.py` |
+| `app/` | Streamlit pages, dossier, charts and the SVG graph | `test_app.py`, `test_graphview.py` |
 
-Keep source packages at the root so `python -m moneygraph.run`, `python -m agent.eval`
-and `streamlit run app/app.py` work directly from a checkout. Shared filesystem
-locations live in `moneygraph/paths.py`; presentation amount formatting lives in
-`moneygraph/formatting.py`. Avoid dependencies from the analytics package into the UI
-or optional assistant libraries.
+The pipeline never imports Streamlit or the assistant libraries, and the viewer and
+assistant never assign roles or priorities: they read the exports in `out/`.
+Shared paths live in `moneygraph/paths.py` and display formatting in `moneygraph/formatting.py`.
 
-## Data and behavior contracts
+## Rules that keep results explainable
 
-Read [the architecture](docs/design.md) for the pipeline order and output schemas.
-Keep required output columns stable; additional columns are allowed. Thresholds and
-weights belong in `moneygraph/config.yaml`, with an explanation. Do not hardcode client
-gids or bake generated results into runtime rules.
+- Thresholds and weights belong in `moneygraph/config.yaml`, each with its reason. No client gids in code.
+- Required output columns stay stable; extra columns may be appended (see [docs/design.md](docs/design.md)).
+- Client ids are 18-digit integers internally and strings at JSON, model and UI boundaries.
+- Read the signal column as `row["flags"]`; pandas also has a `.flags` attribute.
+- Seed inflows are incomplete, so seed roles never use `in_kzt` or `pass_through`.
+  Depth-4 sinks keep their uncertainty and are never observed terminals.
 
-Client identifiers are 18-digit integers internally and strings at JSON/model/UI
-boundaries. Access `flags` with `row["flags"]` because pandas also has a `flags`
-attribute. Seed inflows are incomplete; seed roles cannot depend on `in_kzt` or
-`pass_through`. Depth-4 sinks must retain their uncertainty.
+## Changing results
 
-The original task and data under `project_docs/` are inputs. `out/` contains reviewed
-submission artifacts plus local runtime results. To compare pipeline changes without
-overwriting them:
+`project_docs/` holds the supplied task and data and is never modified. `out/` is the
+committed case snapshot. To compare a change without overwriting it:
 
 ```bash
 make run OUT=/tmp/moneygraph-review
 ```
 
-Model-backed evaluation is optional and makes provider calls. Run `make eval` only
-when that evaluation is requested. Keep `.env`, keys, local handoff notes and caches
-out of commits and container images.
+If outputs change on purpose, rerun `make run`, review the diff and commit the new snapshot
+together with the code change. `make bench` refreshes the scale measurements separately.
+`make eval` calls the configured model provider, so run it only when needed. Keep `.env`
+and keys out of commits.
 
-## Working in parallel
+## Branches
 
-Use the same boundaries for humans and coding agents. Assign each worker an explicit
-file scope, expected behavior and focused validation. One integrator owns shared
-configuration, dependency files, paths and documentation. Agree on shared interfaces
-before workers import them. Avoid two workers editing one file concurrently.
-
-Review the combined diff and run the full offline checks once workers finish. Do not
-launch several copies of the full pipeline test suite when a focused check suffices.
-Current architecture lives in `docs/design.md`; historical hackathon plans and starter
-code remain available in Git history.
+Work on a feature branch, keep commits small, and merge into `main` only after
+`make check` passes on the combined code.
