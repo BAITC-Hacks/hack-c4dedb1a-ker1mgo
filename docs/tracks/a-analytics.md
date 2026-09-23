@@ -25,7 +25,7 @@ Each milestone ends with a push (see "When to push" in [CONTRIBUTING.md](../../C
   *Done when:* total seed flow reaching terminals and depth-4 nodes ≤ total seed out_kzt, and the top 10 by `seed_flow_in` make sense by eye.
   **Push. Checkpoint 1.**
 
-- [ ] **A4 · roles.py** (target 1:55)
+- [x] **A4 · roles.py** (target 1:55)
   Ordered rules from `cfg["roles"]`, `role_detail`, `secondary_roles`, `role_score` margin formula, one evidence template per role/detail (≤ 200 chars, numbers).
   Seeds never use `in_kzt` / `pass_through`. Until A6 lands, depth-4 sinks are `peripheral / truncated_unknown`.
   *Done when:* role counts look sane (no single role except peripheral/terminal above ~60%) and you can explain 3 random gids aloud.
