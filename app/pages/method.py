@@ -21,12 +21,22 @@ def read_csv(path: str, modified: int) -> pd.DataFrame:
 
 def exported_json(name: str) -> dict:
     path = OUT / name
-    return read_json(str(path), path.stat().st_mtime_ns) if path.exists() else {}
+    try:
+        return read_json(str(path), path.stat().st_mtime_ns) if path.exists() else {}
+    except (OSError, ValueError):
+        command = "make bench" if name == "bench_metadata.json" else "make run"
+        st.warning(f"Could not read {name}. Wait for the export to finish, then refresh; `{command}` can rebuild this evidence.")
+        return {}
 
 
 def exported_csv(name: str) -> pd.DataFrame:
     path = OUT / name
-    return read_csv(str(path), path.stat().st_mtime_ns) if path.exists() else pd.DataFrame()
+    try:
+        return read_csv(str(path), path.stat().st_mtime_ns) if path.exists() else pd.DataFrame()
+    except (OSError, ValueError):
+        command = "make bench" if name == "bench.csv" else "make eval"
+        st.warning(f"Could not read {name}. Wait for the export to finish, then refresh; `{command}` can regenerate this optional evidence.")
+        return pd.DataFrame()
 
 
 page_header(
@@ -57,7 +67,7 @@ with scale_tab:
     else:
         chart = OUT / "bench.svg"
         if chart.exists():
-            st.image(str(chart), width="stretch")
+            st.image(str(chart), width=900)
             st.download_button("Download scale chart", chart.read_bytes(), "moneygraph-scale.svg", "image/svg+xml")
         else:
             totals = bench[bench.step.eq("total")]
@@ -123,9 +133,11 @@ with evidence_tab:
     st.subheader("Does the ranking interrupt seed-money flow?")
     resilience = store.resilience()
     if len(resilience):
-        curve = resilience.pivot(index="n_removed", columns="strategy", values="seed_flow_reach")
+        strategy_labels = {"priority": "Priority", "degree": "Degree (all clients)", "degree_nonseed": "Degree (seeds excluded)", "random": "Random (mean)"}
+        curve = resilience.pivot(index="n_removed", columns="strategy", values="seed_flow_reach").rename(columns=strategy_labels)
         st.line_chart(curve, x_label="Clients removed", y_label="Share of seed-money flow remaining")
         last = resilience[resilience.n_removed.eq(resilience.n_removed.max())].copy()
+        last["strategy"] = last.strategy.replace(strategy_labels)
         last["seed_flow_reach"] = last.seed_flow_reach.map(lambda value: f"{value:.1%}")
         st.dataframe(last.rename(columns={"n_removed": "Removed", "strategy": "Strategy", "largest_wcc": "Largest component", "n_components": "Components", "seed_flow_reach": "Flow remaining"}), hide_index=True, width="stretch")
         st.write(
