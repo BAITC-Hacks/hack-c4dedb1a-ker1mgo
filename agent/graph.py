@@ -1,4 +1,3 @@
-import os
 import sys
 from typing import Annotated, TypedDict
 
@@ -25,26 +24,6 @@ Rules:
 - No personal data: clients are gids only.
 - Reply in the language of the question (Russian or English), briefly, with numbers.
 - Lead with the few strongest results; don't paste whole tool tables."""
-
-
-def callbacks():
-    if not (os.environ.get("LANGFUSE_PUBLIC_KEY") and os.environ.get("LANGFUSE_SECRET_KEY")):
-        return []
-    try:
-        from langfuse.langchain import CallbackHandler
-
-        return [CallbackHandler()]
-    except Exception as e:  # tracing is optional
-        print(f"langfuse disabled: {e}", file=sys.stderr)
-        return []
-
-
-def flush():
-    """Send buffered traces; short-lived runs (CLI, eval) exit before the background sender does."""
-    if callbacks():
-        from langfuse import get_client
-
-        get_client().flush()
 
 
 class State(TypedDict):
@@ -112,7 +91,7 @@ def ask(app, question, history=()):
     ]
     out = app.invoke(
         {"messages": msgs, "steps": 0, "retried": False, "unknown": []},
-        config={"callbacks": callbacks(), "recursion_limit": 3 * MAX_STEPS},
+        config={"recursion_limit": 3 * MAX_STEPS},
     )
     answer = out["messages"][-1].content
     new = out["messages"][len(msgs) :]
@@ -133,4 +112,3 @@ if __name__ == "__main__":
     r = ask(build(GraphStore.load()), q)
     print(r["answer"])
     print("\ncited:", r["gids"], "\ntools:", r["tools"], "\nsteps:", r["steps"])
-    flush()

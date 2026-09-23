@@ -28,7 +28,7 @@ import sys
 class BlockAssistantImports(importlib.abc.MetaPathFinder):
     def find_spec(self, fullname, path=None, target=None):
         if fullname.split('.')[0] in {
-            'dotenv', 'langchain', 'langchain_core', 'langchain_openai', 'langgraph', 'langfuse'
+            'dotenv', 'langchain', 'langchain_core', 'langchain_openai', 'langgraph'
         }:
             raise ImportError(f'Optional dependency imported: {fullname}')
 

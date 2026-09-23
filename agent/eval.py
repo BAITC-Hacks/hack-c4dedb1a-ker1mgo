@@ -128,7 +128,7 @@ def score(question, expected, cited, store):
 
 
 def run(model=None, out=OUT):
-    from agent.graph import ask, build, enabled, flush
+    from agent.graph import ask, build, enabled
 
     if not enabled():
         sys.exit("OPENAI_API_KEY is not set; the eval needs the assistant")
@@ -163,7 +163,6 @@ def run(model=None, out=OUT):
         print(
             f"{qid:18s} recall {recall:.2f}  precision {precision:.2f}  unknown {len(unknown)}  tools {','.join(r['tools'])}"
         )
-    flush()
     df = pd.DataFrame(rows)
     df.to_csv(Path(out) / "agent_eval.csv", index=False)
     print(

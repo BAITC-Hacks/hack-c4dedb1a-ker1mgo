@@ -2,7 +2,6 @@
 
 Run commands from the project root.
 
-
 An optional Assistant page in the viewer for questions like «кто собирает деньги с этих пятерых: …». It only reads
 `out/` through graph tools. It never assigns roles or priorities, and every gid it cites is checked against the graph.
 
@@ -56,7 +55,3 @@ The expected gids are computed from the store.
 Recall is 10/10. Precision counts cited gids that were neither expected nor in the question, and it is lower only on
 the two "shared collector" questions: the agent names the collector paid by all five first, then also lists real partial
 collectors paid by 3–4 of them.
-
-**Tracing:** set `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY` and `LANGFUSE_BASE_URL` (or `LANGFUSE_HOST`), and each
-question becomes a Langfuse trace. The trace shows every graph node, tool call and LLM generation, with tokens and latency.
-Without the keys tracing is off and nothing else changes.
