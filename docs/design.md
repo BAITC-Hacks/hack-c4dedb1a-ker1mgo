@@ -1,5 +1,8 @@
 # Design
 
+> Plan written at the start of the hackathon, before any code. Some thresholds and numbers changed during the work
+> (e.g. coordinator now needs 2 seeds paid back, transit has a pass-through cap). **The README has the final rules and results.**
+
 Case: «Граф денег» (task in `project_docs/Task_Description.md`, data in `project_docs/data/`).
 Question the tool answers for an AML analyst: **which of the 2,248 clients to look at first, and why.**
 
