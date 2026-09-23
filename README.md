@@ -1,27 +1,85 @@
 # Money graph
 
-Team ker1mGo, case «Граф денег». From a 4-hop graph of outgoing transfers starting at 81 known couriers (seeds),
-we assign each of the 2,248 clients a role, group them into clusters, and rank **who an AML analyst should look at first, and why**.
+**Follow money from known seeds, inspect the evidence, and choose the next data request.**
 
-Everything we output is a hypothesis to check. It is not a statement that anyone is guilty.
+Team ker1mGo, case «Граф денег». Our case desk turns a four-hop crawl from 81 known couriers into
+explainable role hypotheses, communities and a review order for 2,248 clients. Every finding is a hypothesis
+for an analyst to check, never an accusation.
+
+What makes this approach useful:
+
+- **Seed-money attribution.** A KZT-weighted, outflow-capped propagation estimates where seed-originated money reaches.
+  Priority combines that evidence with roles, source convergence and removal impact; PageRank alone does not decide the queue.
+- **Honest treatment of the crawl boundary.** An inbound-only forwarding model learns from depths 1–3 and distinguishes
+  observed terminal-role hypotheses from inferred ones at depth 4.
+- **A ranking that can be challenged.** Resilience compares priority with degree, degree excluding seeds, and random removal.
+  We show where degree wins and where priority cuts more seed-money flow.
+- **Action after uncertainty.** Exported data requests identify the next outgoing crawl, missing seed inflows and small components to inspect.
+- **A guarded optional assistant.** Graph tools, identifier checks and an evaluation generated from the current graph support natural-language investigation.
+  The pipeline and complete viewer work without a model connection.
+
+| Naive interpretation | Our treatment |
+|---|---|
+| No observed outflow means terminal | 444 depth-4 sinks have **unverified** outflow; their outgoing transfers were never crawled |
+| Every terminal label means the same thing | 1,071 observed and 62 inferred terminal-role hypotheses remain visibly distinct |
+| Largest degree is the best review order | Compare disruption and seed-money reach before choosing a priority strategy |
+| A score is enough | Open the rule trace, nearest missed rule, priority contributions and seed-money path evidence |
 
 ## Quickstart
 
 ```bash
 python3.12 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-make run      # project_docs/data -> out/  (~10 s, offline)
-make test     # optional, ~15 s
+make run      # project_docs/data -> out/ (offline)
+make test     # output contracts, analytical invariants and page smoke tests
 make app      # viewer: open http://localhost:8501 (no browser tab opens by itself)
 ```
 
-Needs Python 3.12 and `make`. From a fresh clone to finished outputs takes about 1.5 minutes, mostly `pip install`.
+Needs Python 3.12 and `make`. Installation downloads dependencies; the pipeline itself runs offline.
+All direct dependency versions, including Streamlit 1.64, are pinned in `requirements.txt`.
 
 `make run` is the same as `python -m moneygraph.run --data project_docs/data --out out`.
 `make test` checks the outputs (row count, schema, evidence, clusters, top list, runtime, no hardcoded gids).
 
 Optional assistant: `cp .env.example .env` and set `OPENAI_API_KEY` (and `OPENAI_MODEL`, `OPENAI_BASE_URL` for any
 OpenAI-compatible endpoint). The pipeline and viewer work without it.
+
+## Run with Docker
+
+Requires Docker Engine and Docker Compose v2.24 or newer (for optional environment files).
+
+```bash
+docker compose up
+```
+
+Open **http://localhost:8501** once the app reports healthy. On first launch Compose builds the
+`python:3.12-slim` image and downloads pinned dependencies. Both services run as an unprivileged user.
+The `pipeline` service has networking disabled, writes a shared `outputs` volume, then exits successfully.
+Only then does `app` start; it reads the volume and its `/_stcore/health` endpoint is checked every 10 seconds.
+No `.env`, GPU or paid service is required.
+
+```bash
+docker compose ps -a               # pipeline: exited (0); app: healthy
+docker compose logs pipeline       # timings and output counts
+docker compose down                # stop; preserve outputs
+```
+
+After changing code, use `docker compose up --build`. Use `MONEYGRAPH_PORT=8502 docker compose up`
+if port 8501 is occupied. To change data, replace the three files in `project_docs/data/`, then rebuild;
+the next pipeline run refreshes the outputs. The host `out/` and Docker's named volume are separate.
+For optional chat, copy `.env.example` to `.env` and set the model connection; that file is passed only to
+`app`, is excluded from the image, and is never required by the pipeline. `make run` and `make app` remain
+available for local use without Docker.
+
+## A five-minute case walkthrough
+
+1. **Case overview:** read the scope and boundary caveats, then open the first review candidate.
+2. **Investigate:** search any part of a gid, focus a client, expand one or two hops, and follow transfer arrows.
+   Open the dossier's role conditions, priority contributions and estimated seed-money paths.
+3. **Clusters and Priorities:** compare group hypotheses and inspect why a client enters the review queue.
+4. **Data gaps:** export requests for the next crawl instead of treating missing outflow as a finding.
+5. **Method & scale:** inspect truncation validation, resilience, measured runtime and configuration provenance.
+   The **Assistant** page is optional; every other page works without a key.
 
 ## How it works
 
@@ -43,7 +101,8 @@ Each step is a module in `moneygraph/` with one function `compute(ctx)` that ret
 ## Outputs
 
 The outputs of the current `main` are committed in [`out/`](out/). The pipeline is deterministic (fixed seeds), so
-`make run` reproduces them byte for byte. `features.parquet` is not committed; `make run` rebuilds it for the viewer.
+`make run` reproduces the required CSVs byte for byte. Large parquet evidence files are rebuilt by
+`make run`; timing and environment metadata naturally vary by machine. The app and assistant read only `out/`.
 
 | File | Contents |
 |---|---|
@@ -51,6 +110,10 @@ The outputs of the current `main` are committed in [`out/`](out/). The pipeline 
 | `out/clusters.csv` | `cluster_id, n_nodes, n_seed, sum_kzt_internal, top_gids, hypothesis` + `dominant_roles, seed_flow_in` |
 | `out/top_nodes.csv` | `rank, gid, role, priority_score, why` + `cluster_id, evidence` (top 30) |
 | `out/features.parquet` | every computed metric per node (used by the viewer and assistant) |
+| `out/edges.parquet`, `out/transactions.parquet` | exported transfer evidence for the viewer and assistant |
+| `out/rule_traces.json`, `out/seed_paths.json` | configured condition traces and estimated seed-money paths for dossiers |
+| `out/pipeline_metadata.json` | thresholds, weights, run settings and measured step timings |
+| `out/bench.csv`, `out/bench.svg` | reproducible scale measurements and chart (`make bench`) |
 | `out/resilience.csv` | largest component, number of components and seed flow left after removing the top-N by each strategy |
 | `out/data_requests.csv` | `gid, reason, suggested_request`: what extra data would resolve each gap (hop 5 for likely forwarders, seed inflows, ...) |
 | `out/truncation_model.json` | depth-4 model: features, CV AUC, coefficients, observed vs predicted forwarding rate |
@@ -169,9 +232,20 @@ priority = seed_factor × Σ weight_k × pct_k        then rescaled so the top n
 `seed_factor = 0.85` for seeds: they are already known and the case asks us to look beyond them. With current weights
 there are no seeds in the top 30.
 
-Each node's `prio_components` column holds the weighted contributions as JSON (the viewer draws them as a bar chart), and
+Each node's `prio_components` column holds the weighted contributions as JSON (the viewer shows a waterfall), and
 `why` puts the top 3 into words, e.g.
 `875k KZT of seed money flows in; consolidator (role score 0.78); reachable from 11 seeds`.
+
+### Open the evidence behind a score
+
+The Investigate dossier shows each condition of the selected role with its measured value, configured threshold and
+pass/fail result, plus the nearest rule the client did not match and its shortfall. The pipeline exports these traces
+from the same predicates and configuration that assign roles; the viewer does not recreate the rules.
+
+Priority contributions form a waterfall from the weighted components through the seed adjustment and score normalization.
+Estimated seed-money paths show where attributed funds came from, ranked by KZT. They are modelled allocations over
+observed transfers, not proof that particular incoming funds financed a later transfer. A plain-language dossier brings
+the role, flows and missing evidence together without requiring the optional assistant.
 
 The top 30 currently has 9 transit nodes, 8 consolidators, 7 coordinators, 6 distributors and no seeds.
 
@@ -196,11 +270,11 @@ That's the trade-off we chose: priority follows the money, not the shape of the 
 
 ## Assistant
 
-An optional chat tab in the viewer for questions like «кто собирает деньги с этих пятерых: …». It only reads
+An optional Assistant page in the viewer for questions like «кто собирает деньги с этих пятерых: …». It only reads
 `out/` through graph tools. It never assigns roles or priorities, and every gid it cites is checked against the graph.
 
 **Enable it:** `cp .env.example .env`, set `OPENAI_API_KEY`, and optionally `OPENAI_MODEL` (default `gpt-4.1-mini`)
-and `OPENAI_BASE_URL` for any OpenAI-compatible endpoint. Without a key the tab shows a notice and the rest of the app works.
+and `OPENAI_BASE_URL` for any OpenAI-compatible endpoint. Without a key the page shows a notice and the rest of the app works.
 From the terminal: `python -m agent.graph "<question>"`.
 
 ```mermaid
@@ -240,6 +314,8 @@ fixed seed, nothing hand-picked. They cover a group's shared collector, a shared
 recipients, the biggest recipient, the top 5 and top 3 non-seeds, the middle of a two-hop path, and a cluster's top clients.
 The expected gids are computed from the store.
 
+**Previously recorded evaluation** (not rerun by the offline pipeline; `make eval` writes a fresh record):
+
 | gid recall | precision | unknown gids | time per question |
 |---|---|---|---|
 | 1.00 | 0.84 | 0 | ~3 s |
@@ -261,7 +337,7 @@ Without the keys tracing is off and nothing else changes.
 | Seed inflow is under-counted | Seeds never use `in_kzt` or `pass_through`; `pass_through` is NaN for seeds |
 | 5,000 KZT threshold | Structuring below it is invisible; we flag amounts near the threshold and say so in the limitations |
 | 19 seeds missing from edges, 12 only receive | These 31 seeds get `peripheral / seed_no_outgoing`; the 19 with no edges go to cluster 0; all are listed in `data_requests.csv` |
-| 16 weakly connected components | Clusters and resilience are computed per graph, not assuming one network; small components are listed for follow-up |
+| 16 connected components with edges, plus 19 isolated seeds | Clusters and resilience include all 35 weak components; small components are listed for follow-up |
 | No client attributes | Only structure, amounts and dates are used; nothing is inferred about people |
 | No ground-truth roles | Rules are explicit and documented; we check them for internal consistency (percentiles, stability) instead of accuracy |
 
@@ -276,9 +352,32 @@ Without the keys tracing is off and nothing else changes.
 - **Below 5,000 KZT is invisible**, so structuring under the threshold can't be seen at all.
 - **Truncation model** is trained on depth 1–3 and applied to depth 4, assuming those nodes behave alike; see its AUC and coefficients in `out/truncation_model.json`.
 
-## Scaling to ~1M nodes
+## Measured scale
 
-At 2,248 nodes everything runs in memory with pandas and networkx in about 10 s. At ~1M nodes and tens of millions of transfers:
+```bash
+make bench   # equivalent to python -m moneygraph.bench --data project_docs/data --out out
+# For the Docker output volume instead:
+docker compose run --rm pipeline python -m moneygraph.bench
+```
+
+The benchmark creates seeded graph lifts at ×1, ×10 and ×100. Incoming/outgoing degree distributions and transfer
+amounts follow the supplied data; this measures computational cost, not accuracy on a larger investigation.
+`out/bench.csv` records per-step wall-clock seconds, graph sizes, mode and distribution checks.
+The production pipeline retains exact metrics at the supplied case size; larger benchmark runs use explicitly labelled
+sampled betweenness. Comparing those modes as if they were the same algorithm would be misleading.
+Timing includes the seven analytical steps, summaries, resilience and core file exports, including graph construction and
+integrity checks. Interactive explanation JSON, input parquet copies and UI rendering are excluded; full case timings are
+recorded separately in `out/pipeline_metadata.json`.
+
+![Measured pipeline scale](out/bench.svg)
+
+The **Method & scale** page displays the same artifact and per-step measurements, with environment and mode details.
+The recorded chart is evidence from one machine, not a promise about other hardware or real-world graph topology.
+
+### Next scale step: ~1M nodes
+
+Million-node performance has **not** been measured. These are engineering directions to validate next:
+
 
 | Now | At ~1M nodes |
 |---|---|
