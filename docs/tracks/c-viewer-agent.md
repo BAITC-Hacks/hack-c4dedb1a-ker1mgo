@@ -15,7 +15,7 @@ Each milestone ends with a push (see "When to push" in [CONTRIBUTING.md](../../C
   *Done when:* any gid shows its directed neighbours in under 2 s.
   **Push. Checkpoint 1.**
 
-- [ ] **C3 · node card + overview** (target 1:45)
+- [x] **C3 · node card + overview** (target 1:45)
   Card: role, score, evidence, secondary roles, priority breakdown bar (`prio_components`), daily in vs out timeline (plotly), counterparties, flags.
   Overview: KPIs, role counts, clusters table with hypotheses, resilience chart.
   **Push.**
