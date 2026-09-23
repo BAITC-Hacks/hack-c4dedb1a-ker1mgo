@@ -29,10 +29,15 @@ def role_of(f, gid):
     return f.loc[gid, "role"], f.loc[gid, "role_detail"]
 
 
-def test_coordinator_pays_back_into_seed():
-    # two seeds pay 10, and 10 sends money back into seed 1
-    f = toy([(1, 10, 100_000, 1), (2, 10, 80_000, 1), (10, 1, 50_000, 2)], {1: 0, 2: 0, 10: 1}, {1, 2})
+def test_coordinator_pays_back_into_seeds():
+    # two seeds pay 10, and 10 sends money back into both of them
+    both = [(1, 10, 100_000, 1), (2, 10, 80_000, 1), (10, 1, 50_000, 2), (10, 2, 40_000, 2)]
+    f = toy(both, {1: 0, 2: 0, 10: 1}, {1, 2})
     assert role_of(f, 10)[0] == "coordinator"
+
+    # paying back into a single seed is not enough (min_pays_seed = 2)
+    f = toy(both[:3], {1: 0, 2: 0, 10: 1}, {1, 2})
+    assert role_of(f, 10)[0] != "coordinator"
 
 
 def test_distributor_fans_out():

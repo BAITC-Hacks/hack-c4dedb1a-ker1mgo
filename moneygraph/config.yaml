@@ -17,7 +17,7 @@ taint:
 
 roles:
   coordinator:
-    min_pays_seed: 1           # sends money back into known couriers
+    min_pays_seed: 2           # pays back into >= 2 distinct seeds; at 1 it matched 67 nodes (n_seed_sources >= 2 holds for 73%), at 2 it gives 22
     min_cycle_seeds: 2
     min_seed_sources: 2        # sits downstream of more than one seed
     betweenness_pct: 0.98
