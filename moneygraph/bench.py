@@ -108,6 +108,8 @@ def chart(frame, path):
         axes.set_title("Synthetic graph lifts preserve degree and amount distributions", fontsize=10, pad=15)
         figure.savefig(path, format="svg", metadata={"Date": None})
         plt.close(figure)
+    path = Path(path)
+    path.write_text("\n".join(line.rstrip() for line in path.read_text().splitlines()) + "\n")
 
 
 def run(data_dir, out_dir, scales=None, samples=None, repeat=1):
