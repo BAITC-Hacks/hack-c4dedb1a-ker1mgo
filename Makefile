@@ -2,7 +2,7 @@ PY ?= python
 DATA ?= project_docs/data
 OUT ?= out
 
-.PHONY: run app test eval eda
+.PHONY: run app test eval eda bench docker-up docker-down
 
 run:
 	$(PY) -m moneygraph.run --data $(DATA) --out $(OUT)
@@ -18,3 +18,12 @@ eval:
 
 eda:
 	$(PY) -m moneygraph.eda --data $(DATA)
+
+bench:
+	$(PY) -m moneygraph.bench --data $(DATA) --out $(OUT)
+
+docker-up:
+	docker compose up --build
+
+docker-down:
+	docker compose down

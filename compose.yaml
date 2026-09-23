@@ -1,0 +1,43 @@
+name: moneygraph
+
+x-runtime: &runtime
+  image: moneygraph:local
+  build: .
+  init: true
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+
+services:
+  pipeline:
+    <<: *runtime
+    command: ["python", "-m", "moneygraph.run", "--data", "project_docs/data", "--out", "out"]
+    network_mode: none
+    volumes:
+      - outputs:/app/out
+
+  app:
+    <<: *runtime
+    depends_on:
+      pipeline:
+        condition: service_completed_successfully
+    env_file:
+      - path: .env
+        required: false
+    ports:
+      - "${MONEYGRAPH_PORT:-8501}:8501"
+    volumes:
+      - outputs:/app/out:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8501/_stcore/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      start_period: 20s
+      retries: 6
+
+volumes:
+  outputs:
