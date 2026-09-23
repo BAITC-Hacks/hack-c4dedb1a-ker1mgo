@@ -63,3 +63,6 @@ priority:
   seed_priority_factor: 0.85   # seeds are already known; the case asks to look above them
   removal_candidates: 100
   top_n: 30
+
+data_requests:
+  small_component_max: 20      # weak components below this size aren't linked to the main network
