@@ -1,0 +1,42 @@
+{
+  "n_train": 1723,
+  "n_target": 444,
+  "features": [
+    "in_deg",
+    "log_in_kzt",
+    "in_tx",
+    "mean_transfer",
+    "max_transfer",
+    "round_share",
+    "in_active_days",
+    "max_same_day_payers",
+    "n_seed_payers",
+    "payer_out_deg",
+    "payer_pass_through"
+  ],
+  "observed_rate_depth": {
+    "1": 0.354,
+    "2": 0.418,
+    "3": 0.36
+  },
+  "auc_cv": 0.733,
+  "trusted": true,
+  "observed_rate_depth1_3": 0.374,
+  "mean_p_depth4": 0.412,
+  "expected_forwarders_depth4": 183,
+  "coefficients": {
+    "mean_transfer": -0.955,
+    "in_deg": 0.701,
+    "max_transfer": 0.658,
+    "payer_out_deg": -0.371,
+    "max_same_day_payers": -0.349,
+    "in_active_days": 0.326,
+    "log_in_kzt": 0.267,
+    "payer_pass_through": 0.147,
+    "round_share": 0.071,
+    "in_tx": -0.019,
+    "n_seed_payers": -0.015
+  },
+  "intercept": -0.007,
+  "prior_shift": -0.516
+}
