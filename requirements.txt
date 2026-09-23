@@ -1,0 +1,23 @@
+# pipeline
+pandas==3.0.6
+pyarrow==25.0.1
+networkx==3.7
+numpy==2.5.3
+scipy==1.18.1
+scikit-learn==1.9.1
+pyyaml==6.0.3
+
+# viewer
+streamlit==1.64.0
+pyvis==0.3.2
+plotly==7.1.0
+
+# assistant (optional at runtime)
+langgraph==1.2.12
+langchain-core==1.6.4
+langchain-openai==1.6.4
+langfuse==4.15.4
+python-dotenv==1.2.3
+
+# dev
+pytest==9.1.1
