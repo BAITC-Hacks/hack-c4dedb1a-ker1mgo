@@ -54,7 +54,7 @@ Each milestone ends with a push (see "When to push" in [CONTRIBUTING.md](../../C
   *Done when:* 15–25 coordinators, and you can defend the top 3 aloud.
   **Push.**
 
-- [ ] **A9 · transit sanity + evidence wording** (20 min)
+- [x] **A9 · transit sanity + evidence wording** (20 min)
   88 of 189 transit nodes have `pass_through > 2` (e.g. "116k in, 507k out (439%)"): they get most of their money from outside the graph, so "passes money on" is a weak claim.
   Add `transit.max_pass_through_fast: 2.0` to config; the fast-pass branch only applies at or below it. Nodes above it fall to `weak_signal` with transit in `secondary_roles`.
   Evidence shows `betweenness 0.0000` for 18 coordinators: print the percentile instead ("betweenness top 2%").

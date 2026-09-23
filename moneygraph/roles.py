@@ -65,8 +65,8 @@ def rule(name, r, c, bt_thr):
         k = c["transit"]
         if r.is_seed or r.in_deg < 1 or r.out_deg < 1:
             return None
-        return all_of(any_of(between(pt, k["pass_through_low"], k["pass_through_high"]),
-                             ge(r.fast_pass_share, k["min_fast_pass_share"])))
+        fast = ge(r.fast_pass_share, k["min_fast_pass_share"]) if pt <= k["max_pass_through_fast"] else None
+        return all_of(any_of(between(pt, k["pass_through_low"], k["pass_through_high"]), fast))
     if name == "terminal":
         if r.is_seed or r.out_deg > 0 or r.in_deg < 1:
             return None
@@ -75,6 +75,13 @@ def rule(name, r, c, bt_thr):
         p = r.p_has_out
         return None if math.isnan(p) or p >= c["terminal"]["max_p_has_out"] else [1.0]
     raise ValueError(name)
+
+
+def fast_pass_only(r, c):
+    """Fast pass-through but pass_through above the cap: kept as a secondary hint, not a role."""
+    k = c["transit"]
+    return (not r.is_seed and r.in_deg >= 1 and r.out_deg >= 1 and r.fast_pass_share >= k["min_fast_pass_share"]
+            and nan_to(r.pass_through, 0) > k["max_pass_through_fast"])
 
 
 def partial_match(r, c):
@@ -112,6 +119,13 @@ def pct(x):
     return f"{100 * x:.0f}%"
 
 
+def betweenness_text(top):
+    """top = share of nodes with betweenness >= this node's; NaN/None when not computed."""
+    if top is None or math.isnan(top):
+        return ""
+    return "betweenness 0" if top >= 0.5 else f"betweenness top {max(1, math.ceil(100 * top))}%"
+
+
 def evidence(r, role, detail, c):
     days = c["fast_pass_days"]
     seeds = f" ({n(r.n_seed_payers, 'seed')})" if r.n_seed_payers else ""
@@ -119,7 +133,7 @@ def evidence(r, role, detail, c):
     if role == "coordinator":
         parts = [f"pays {n(r.pays_seed, 'seed')} back" if r.pays_seed else "",
                  f"on cycles with {n(r.cycle_with_seeds, 'seed')}" if r.cycle_with_seeds else "",
-                 f"downstream of {n(r.n_seed_sources, 'seed')}", f"betweenness {r.betweenness:.4f}"]
+                 f"downstream of {n(r.n_seed_sources, 'seed')}", betweenness_text(r.get("bt_top"))]
         s = "; ".join(p for p in parts if p)
     elif role == "distributor":
         s = f"pays {n(r.out_deg, 'recipient')} {kzt(r.out_kzt)}; from {n(r.in_deg, 'payer')}{seeds}"
@@ -146,6 +160,9 @@ def evidence(r, role, detail, c):
         s = "0 payers, 0 recipients: no transfers in the graph"
     elif detail == "seed_no_outgoing":
         s = f"seed with 0 outgoing transfers in data; {n(r.in_deg, 'payer')}"
+    elif fast_pass_only(r, c):
+        s = (f"{kzt(r.in_kzt)} in, {kzt(r.out_kzt)} out ({pct(r.pass_through)}); {pct(r.fast_pass_share)} forwarded "
+             f"within {days} days, but most outflow comes from outside the graph")
     else:
         s = f"{n(r.in_deg, 'payer')} / {n(r.out_deg, 'recipient')}; {kzt(r.out_kzt)} out; no role rule met"
     if r.seed_flow_in > 0:
@@ -178,7 +195,10 @@ def assign(r, c, bt_thr):
         else:
             detail = "weak_signal"
         score = 1 - partial_match(r, c)
-    secondary = ";".join(name for name in matched if name != role)
+    others = [name for name in matched if name != role]
+    if "transit" not in matched and fast_pass_only(r, c):
+        others.append("transit")
+    secondary = ";".join(others)
     return role, detail, secondary, float(np.clip(score, 0, 1))
 
 
@@ -186,8 +206,12 @@ def compute(ctx) -> pd.DataFrame:
     f = ctx.features
     c = dict(ctx.cfg["roles"], fast_pass_days=ctx.cfg["temporal"]["fast_pass_days"])
     bt_thr = float(f.betweenness.quantile(c["coordinator"]["betweenness_pct"]))
+    # share of nodes at or above each betweenness value, for "betweenness top 2%" in evidence
+    b = f.betweenness.to_numpy()
+    bt_top = pd.Series((b[None, :] >= b[:, None]).mean(axis=1), index=f.index)
     rows = []
-    for _, r in f.iterrows():
+    for i, r in f.iterrows():
+        r["bt_top"] = bt_top[i]
         role, detail, secondary, score = assign(r, c, bt_thr)
         rows.append((r.gid, role, detail, secondary, score, evidence(r, role, detail, c)))
     return pd.DataFrame(rows, columns=["gid", "role", "role_detail", "secondary_roles", "role_score", "evidence"])

@@ -40,9 +40,10 @@ def compute(ctx) -> pd.DataFrame:
     df["in_cycle"] = df.gid.isin(on_cycle).astype(int)
     df["cycle_with_seeds"] = df.gid.map(lambda v: len(cyc_seeds.get(v, ()))).astype(int)
 
-    # printed so config thresholds can be checked against the data
-    print("  percentiles (p50/p90/p95/p98):")
-    for col in ["in_deg", "out_deg", "betweenness"]:
-        q = df[col].quantile([0.5, 0.9, 0.95, 0.98]).tolist()
-        print(f"    {col:<12}" + " ".join(f"{x:.4g}" for x in q))
+    # printed on verbose runs so config thresholds can be checked against the data
+    if getattr(ctx, "verbose", False):
+        print("  percentiles (p50/p90/p95/p98):")
+        for col in ["in_deg", "out_deg", "betweenness"]:
+            q = df[col].quantile([0.5, 0.9, 0.95, 0.98]).tolist()
+            print(f"    {col:<12}" + " ".join(f"{x:.4g}" for x in q))
     return df

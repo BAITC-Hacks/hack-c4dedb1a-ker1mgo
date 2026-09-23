@@ -32,6 +32,7 @@ roles:
     pass_through_low: 0.8      # ТЗ: 72 nodes fall in 0.8-1.2
     pass_through_high: 1.2
     min_fast_pass_share: 0.5
+    max_pass_through_fast: 2.0 # above this most money comes from outside the graph; fast pass-through alone is too weak
   terminal:
     max_p_has_out: 0.3         # depth-4 sink counts as terminal only below this
   truncated_likely_forwarding_p: 0.6
