@@ -12,7 +12,7 @@ Each milestone ends with a push (see "When to push" in [CONTRIBUTING.md](../../C
   *Done when:* `make run` prints p50/p90/p95/p98 of in_deg, out_deg and betweenness (used to confirm config thresholds).
   **Push.**
 
-- [ ] **A2 · temporal.py** (target 1:00)
+- [x] **A2 · temporal.py** (target 1:00)
   `fast_pass_share` (FIFO: each incoming transfer matched by outgoing within `fast_pass_days`), `out_before_in`,
   `active_days`, `max_same_day_payers`, `flags` (`repeat_amount` same amount ≥ 5×, `round_amounts` ≥ 80% multiples of 10k,
   `near_threshold` ≥ 3 tx in 5,000–6,000, `burst` ≥ 50% of tx on one day).
