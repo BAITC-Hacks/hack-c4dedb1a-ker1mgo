@@ -10,9 +10,12 @@ Everything we output is a hypothesis to check. It is not a statement that anyone
 ```bash
 python3.12 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-make run      # project_docs/data -> out/  (under a minute, offline)
-make app      # viewer on http://localhost:8501
+make run      # project_docs/data -> out/  (~10 s, offline)
+make test     # optional, ~15 s
+make app      # viewer: open http://localhost:8501 (no browser tab opens by itself)
 ```
+
+Needs Python 3.12 and `make`. From a fresh clone to finished outputs takes about 1.5 minutes, mostly `pip install`.
 
 `make run` is the same as `python -m moneygraph.run --data project_docs/data --out out`.
 `make test` checks the outputs (row count, schema, evidence, clusters, top list, runtime, no hardcoded gids).
