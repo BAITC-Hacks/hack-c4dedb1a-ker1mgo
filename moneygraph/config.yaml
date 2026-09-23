@@ -1,0 +1,54 @@
+# Every threshold and weight lives here, each with the reason it has this value.
+# Change values here only, never in code.
+
+temporal:
+  fast_pass_days: 2            # money in and out within 2 days = rapid transit (ТЗ temporal hint)
+
+taint:
+  rounds: 6                    # covers depth 4 plus back edges without letting cycles inflate flow
+
+roles:
+  coordinator:
+    min_pays_seed: 1           # sends money back into known couriers
+    min_cycle_seeds: 2
+    min_seed_sources: 2        # sits downstream of more than one seed
+    betweenness_pct: 0.98
+  distributor:
+    min_out_deg: 10            # fan-out; data has hubs with 60-116 recipients
+    out_in_ratio: 3
+  consolidator:
+    min_in_deg: 5              # ~50 nodes have >= 5 distinct payers
+    max_pass_through: 0.5
+    out_in_ratio: 0.333
+  transit:
+    pass_through_low: 0.8      # ТЗ: 72 nodes fall in 0.8-1.2
+    pass_through_high: 1.2
+    min_fast_pass_share: 0.5
+  terminal:
+    max_p_has_out: 0.3         # depth-4 sink counts as terminal only below this
+  truncated_likely_forwarding_p: 0.6
+
+truncation:
+  min_auc: 0.6                 # below this we don't trust the model and mark depth-4 sinks unknown
+
+clusters:
+  seed: 42
+  resolution: 1.0
+
+priority:
+  weights:
+    seed_flow: 0.30
+    role: 0.25
+    seed_sources: 0.15
+    betweenness: 0.15
+    removal_impact: 0.15
+  role_weight:
+    coordinator: 1.0
+    consolidator: 0.9
+    distributor: 0.8
+    transit: 0.6
+    terminal: 0.5
+    peripheral: 0.1
+  seed_priority_factor: 0.85   # seeds are already known; the case asks to look above them
+  removal_candidates: 100
+  top_n: 30
