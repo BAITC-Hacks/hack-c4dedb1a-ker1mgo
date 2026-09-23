@@ -139,10 +139,14 @@ class GraphStore:
         ]
         df = pd.DataFrame(rows, columns=["gid", "n_sources", "min_hops", "sources"])
         if df.empty:
-            return df.assign(role=[], in_kzt=[])
+            return df.assign(kzt_from_group=[], role=[], in_kzt=[])
+        # money paid straight from the group; indirect hops aren't attributable
+        df["kzt_from_group"] = [
+            sum(self.G.edges[g, n]["sum_kzt"] for g in gids if self.G.has_edge(g, n)) for n in df.gid
+        ]
         df["role"] = self.f.loc[df.gid, "role"].to_numpy()
         df["in_kzt"] = self.f.loc[df.gid, "in_kzt"].to_numpy()
-        return df.sort_values(["n_sources", "min_hops", "in_kzt"], ascending=[False, True, False],
+        return df.sort_values(["n_sources", "min_hops", "kzt_from_group"], ascending=[False, True, False],
                               ignore_index=True)
 
     def top_nodes(self, n=10, role=None, include_seeds=True):
