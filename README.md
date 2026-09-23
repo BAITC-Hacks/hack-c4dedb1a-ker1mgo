@@ -6,6 +6,8 @@ Team ker1mGo, case «Граф денег». Our case desk turns a four-hop crawl
 explainable role hypotheses, communities and a review order for 2,248 clients. Every finding is a hypothesis
 for an analyst to check, never an accusation.
 
+![Investigate case desk with the money-flow graph and an evidence dossier](docs/media/investigate.png)
+
 What makes this approach useful:
 
 - **Seed-money attribution.** A KZT-weighted, outflow-capped propagation estimates where seed-originated money reaches.
@@ -408,4 +410,4 @@ Million-node performance has **not** been measured. These are engineering direct
 | removal impact for top 100 | same idea, still top-K only; or approximate with the flow through the node |
 | BFS per seed for `n_seed_sources` | one multi-source BFS with bitsets per seed, or HyperLogLog counters |
 | full recompute | incremental: new transfers update aggregates and only re-propagate from affected nodes; the crawl extends one hop at a time where `data_requests.csv` points |
-| pyvis viewer | WebGL (sigma.js / cosmograph); show ego graphs and clusters, never the whole graph |
+| offline SVG graph in a Streamlit v2 component | WebGL (sigma.js / cosmograph); keep ego graphs and clusters bounded |

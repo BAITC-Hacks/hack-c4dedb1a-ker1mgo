@@ -10,7 +10,6 @@ matplotlib==3.11.2          # standalone benchmark chart
 
 # viewer
 streamlit==1.64.0
-pyvis==0.3.2
 plotly==7.1.0
 
 # assistant (optional at runtime)
