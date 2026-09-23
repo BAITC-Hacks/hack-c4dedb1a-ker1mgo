@@ -1,18 +1,19 @@
 import os
-import re
 import sys
 from typing import Annotated, TypedDict
 
-from dotenv import load_dotenv
 from langchain_core.messages import AIMessage, AnyMessage, HumanMessage, SystemMessage
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 
-from agent.store import to_gid
-from agent.tools import cited_gids, make_tools
+from agent.config import DEFAULT_MODEL as DEFAULT_MODEL
+from agent.config import create_llm
+from agent.config import enabled as enabled
+from agent.config import load_env as load_env
+from agent.identifiers import cited_gids, ordered_gids
+from agent.tools import make_tools
 
-DEFAULT_MODEL = "gpt-4.1-mini"
 MAX_STEPS = 8
 
 SYSTEM = """You help an AML analyst explore a graph of money transfers between bank clients (gids).
@@ -26,30 +27,12 @@ Rules:
 - Lead with the few strongest results; don't paste whole tool tables."""
 
 
-_env_loaded = False
-
-
-def load_env():
-    global _env_loaded
-    if _env_loaded:
-        return
-    _env_loaded = True
-    load_dotenv()
-    # an empty OPENAI_BASE_URL in .env would be taken as the endpoint
-    for k in [k for k, v in os.environ.items() if k.startswith(("OPENAI_", "LANGFUSE_")) and not v.strip()]:
-        os.environ.pop(k)
-
-
-def enabled():
-    load_env()
-    return bool(os.environ.get("OPENAI_API_KEY"))
-
-
 def callbacks():
     if not (os.environ.get("LANGFUSE_PUBLIC_KEY") and os.environ.get("LANGFUSE_SECRET_KEY")):
         return []
     try:
         from langfuse.langchain import CallbackHandler
+
         return [CallbackHandler()]
     except Exception as e:  # tracing is optional
         print(f"langfuse disabled: {e}", file=sys.stderr)
@@ -60,6 +43,7 @@ def flush():
     """Send buffered traces; short-lived runs (CLI, eval) exit before the background sender does."""
     if callbacks():
         from langfuse import get_client
+
         get_client().flush()
 
 
@@ -73,17 +57,16 @@ class State(TypedDict):
 def build(store, model=None, llm=None):
     tools = make_tools(store)
     if llm is None:
-        from langchain_openai import ChatOpenAI
-        load_env()
-        llm = ChatOpenAI(model=model or os.environ.get("OPENAI_MODEL") or DEFAULT_MODEL, temperature=0,
-                         base_url=os.environ.get("OPENAI_BASE_URL") or None)
+        llm = create_llm(model)
     with_tools = llm.bind_tools(tools)
 
     def agent(state):
         msgs = [SystemMessage(SYSTEM)] + state["messages"]
         if state["steps"] >= MAX_STEPS - 1:
             # out of budget: answer from what we have
-            reply = llm.invoke(msgs + [HumanMessage("Step limit reached. Answer now from the tool results above.")])
+            reply = llm.invoke(
+                msgs + [HumanMessage("Step limit reached. Answer now from the tool results above.")]
+            )
         else:
             reply = with_tools.invoke(msgs)
         return {"messages": [reply], "steps": state["steps"] + 1}
@@ -96,8 +79,10 @@ def build(store, model=None, llm=None):
         answer = state["messages"][-1]
         unknown = sorted(str(g) for g in cited_gids(answer.content) if not store.has(g))
         if unknown and not state["retried"]:
-            note = (f"These gids are not in the graph: {', '.join(unknown)}. "
-                    "Rewrite the answer citing only gids returned by the tools.")
+            note = (
+                f"These gids are not in the graph: {', '.join(unknown)}. "
+                "Rewrite the answer citing only gids returned by the tools."
+            )
             return {"messages": [HumanMessage(note)], "retried": True, "unknown": unknown}
         if unknown:
             text = answer.content
@@ -122,20 +107,28 @@ def build(store, model=None, llm=None):
 
 def ask(app, question, history=()):
     """Run one question. history: earlier (role, text) pairs, role 'user' or 'assistant'."""
-    msgs = [HumanMessage(t) if r == "user" else AIMessage(t) for r, t in history] + [HumanMessage(question)]
-    out = app.invoke({"messages": msgs, "steps": 0, "retried": False, "unknown": []},
-                     config={"callbacks": callbacks(), "recursion_limit": 3 * MAX_STEPS})
+    msgs = [HumanMessage(t) if r == "user" else AIMessage(t) for r, t in history] + [
+        HumanMessage(question)
+    ]
+    out = app.invoke(
+        {"messages": msgs, "steps": 0, "retried": False, "unknown": []},
+        config={"callbacks": callbacks(), "recursion_limit": 3 * MAX_STEPS},
+    )
     answer = out["messages"][-1].content
-    new = out["messages"][len(msgs):]
+    new = out["messages"][len(msgs) :]
     used = [c["name"] for m in new for c in (getattr(m, "tool_calls", None) or [])]
-    order = [m.group() for m in re.finditer(r"(?<!\d)\d{15,20}(?!\d)", answer)]
-    gids = list(dict.fromkeys(str(to_gid(g)) for g in order))
-    return {"answer": answer, "gids": gids, "tools": used,
-            "steps": out["steps"], "unknown": out["unknown"]}
+    return {
+        "answer": answer,
+        "gids": ordered_gids(answer),
+        "tools": used,
+        "steps": out["steps"],
+        "unknown": out["unknown"],
+    }
 
 
 if __name__ == "__main__":
     from agent.store import GraphStore
+
     q = " ".join(sys.argv[1:]) or "Who should I look at first and why?"
     r = ask(build(GraphStore.load()), q)
     print(r["answer"])

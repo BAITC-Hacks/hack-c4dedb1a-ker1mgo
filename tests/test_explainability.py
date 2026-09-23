@@ -1,4 +1,5 @@
 """Rule boundaries, exported evidence and faithful capped-flow path attribution."""
+
 import copy
 import math
 from types import SimpleNamespace
@@ -13,9 +14,20 @@ from moneygraph.data import load_config
 
 
 def row(**changes):
-    values = dict(gid=10, in_deg=1, out_deg=9, pays_seed=0, cycle_with_seeds=0,
-                  n_seed_sources=0, betweenness=0, is_seed=False, pass_through=10.0,
-                  fast_pass_share=0.0, depth=1, p_has_out=math.nan)
+    values = dict(
+        gid=10,
+        in_deg=1,
+        out_deg=9,
+        pays_seed=0,
+        cycle_with_seeds=0,
+        n_seed_sources=0,
+        betweenness=0,
+        is_seed=False,
+        pass_through=10.0,
+        fast_pass_share=0.0,
+        depth=1,
+        p_has_out=math.nan,
+    )
     values.update(changes)
     return pd.Series(values)
 
@@ -27,8 +39,11 @@ def config():
 
 def test_trace_follows_order_and_same_rule_predicates():
     c = config()
-    r = row(pays_seed=c["coordinator"]["min_pays_seed"], n_seed_sources=c["coordinator"]["min_seed_sources"],
-            out_deg=c["distributor"]["min_out_deg"])
+    r = row(
+        pays_seed=c["coordinator"]["min_pays_seed"],
+        n_seed_sources=c["coordinator"]["min_seed_sources"],
+        out_deg=c["distributor"]["min_out_deg"],
+    )
     trace = roles.explain(r, c, 1)
     assignment = roles.assign(r, c, 1, trace)
     assert assignment[0] == trace["matched_rule"] == "coordinator"
@@ -93,7 +108,9 @@ def test_real_data_traces_and_priority_reconcile(pipeline):
         assert not matching or matching[0] == node.role
         audit = ctx.priority_audit[str(node.gid)]
         assert audit["weighted_sum"] == pytest.approx(sum(audit["components"].values()))
-        assert audit["weighted_sum"] * audit["seed_factor"] / audit["normalization_factor"] == pytest.approx(node.priority_score)
+        assert audit["weighted_sum"] * audit["seed_factor"] / audit[
+            "normalization_factor"
+        ] == pytest.approx(node.priority_score)
 
 
 def context(edges, seeds, rounds=6, top_k=3):
@@ -135,30 +152,61 @@ def test_flow_paths_cycles_horizon_top_k_and_seed_reset():
 def test_seed_bitsets_equal_directed_reachability_with_cycles():
     graph = nx.gnp_random_graph(30, 0.08, seed=17, directed=True)
     seeds = {0, 3, 7}
-    expected = {gid: sum(gid != seed and nx.has_path(graph, seed, gid) for seed in seeds) for gid in graph}
+    expected = {
+        gid: sum(gid != seed and nx.has_path(graph, seed, gid) for seed in seeds) for gid in graph
+    }
     assert taint.seed_source_counts(graph, seeds) == expected
-
-
 
 
 def test_export_contract_is_complete_and_finite(pipeline):
     import json
+
     out, ctx = pipeline["out"], pipeline["ctx"]
+
     def reject_constant(value):
         raise AssertionError(f"Non-standard JSON constant: {value}")
+
     trace = json.loads((out / "rule_traces.json").read_text(), parse_constant=reject_constant)
     paths = json.loads((out / "seed_paths.json").read_text(), parse_constant=reject_constant)
     expected = set(ctx.features.gid.astype(str))
     assert set(trace["nodes"]) == set(paths["nodes"]) == expected
     pd.testing.assert_frame_equal(pd.read_parquet(out / "edges.parquet"), ctx.edges)
-    pd.testing.assert_frame_equal(pd.read_parquet(out / "transactions.parquet"), ctx.tx, check_dtype=False)
+    pd.testing.assert_frame_equal(
+        pd.read_parquet(out / "transactions.parquet"), ctx.tx, check_dtype=False
+    )
     for gid, record in trace["nodes"].items():
         assert "hypothesis" in record["dossier"]
         if record["role"] == "peripheral":
             assert record["fallback"]["matched"]
         assert paths["nodes"][gid]["shown_kzt"] <= paths["nodes"][gid]["seed_flow_in"] + 1e-6
-    assert list(pipeline["nodes"].columns) == ["gid", "role", "role_score", "cluster_id", "priority_score", "evidence",
-                                               "role_detail", "secondary_roles", "depth", "is_seed"]
-    assert list(pipeline["top"].columns) == ["rank", "gid", "role", "priority_score", "why", "cluster_id", "evidence"]
-    assert list(pipeline["clusters"].columns) == ["cluster_id", "n_nodes", "n_seed", "sum_kzt_internal", "top_gids",
-                                                  "hypothesis", "dominant_roles", "seed_flow_in"]
+    assert list(pipeline["nodes"].columns) == [
+        "gid",
+        "role",
+        "role_score",
+        "cluster_id",
+        "priority_score",
+        "evidence",
+        "role_detail",
+        "secondary_roles",
+        "depth",
+        "is_seed",
+    ]
+    assert list(pipeline["top"].columns) == [
+        "rank",
+        "gid",
+        "role",
+        "priority_score",
+        "why",
+        "cluster_id",
+        "evidence",
+    ]
+    assert list(pipeline["clusters"].columns) == [
+        "cluster_id",
+        "n_nodes",
+        "n_seed",
+        "sum_kzt_internal",
+        "top_gids",
+        "hypothesis",
+        "dominant_roles",
+        "seed_flow_in",
+    ]

@@ -39,7 +39,7 @@ h2, h3 { font-weight: 500 !important; letter-spacing: -.01em; padding-top: .45re
 [data-testid="stMetricValue"] { font-weight: 500; font-size: 1.6rem; }
 [data-testid="stMetricLabel"] { color: var(--muted); font-size: .8rem; }
 [data-testid="stMetric"] { border-top: 1px solid var(--line); padding-top: .65rem; }
-[data-testid="stCaptionContainer"] { color: var(--muted); }
+[data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] p { color: var(--muted); opacity: 1; }
 [data-testid="stTabs"] [role="tab"] { font-size: .9rem; }
 button:focus-visible, a:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline: 3px solid #176B80 !important; outline-offset: 3px; }
 .stPlotlyChart { border-bottom: 1px solid #EEF3F5; }
@@ -51,3 +51,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, [tabindex]:focus-vis
  .case-product { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+
+.st-key-dossier_summary, .st-key-dossier_summary [data-testid="stVerticalBlock"] { gap: .55rem; }
+.st-key-dossier_summary .dossier-summary { margin: .3rem 0 .4rem; }
+
+[data-testid="stCaptionContainer"] * { color: var(--muted) !important; }

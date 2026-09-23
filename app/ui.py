@@ -1,17 +1,18 @@
 import html
 import json
 import os
+from importlib.util import find_spec
 from pathlib import Path
 
 import pandas as pd
 import streamlit as st
 
 from agent.store import GraphStore
-from app.presentation import COLUMNS, DETAILS, REQUESTS, ROLE_NAMES, number, priority_reason, summary
+from app.presentation import COLUMNS, DETAILS, REQUESTS, ROLE_NAMES, priority_reason, summary
 from app.theme import ROLE_COLORS, ROLE_LABELS
+from moneygraph.paths import OUTPUT_DIR
 
-ROOT = Path(__file__).resolve().parents[1]
-OUT = Path(os.environ.get("MONEYGRAPH_OUT", ROOT / "out"))
+OUT = Path(os.environ.get("MONEYGRAPH_OUT", OUTPUT_DIR))
 
 
 @st.cache_resource(show_spinner="Открываем материалы…")
@@ -50,7 +51,9 @@ def read_json(path, modified):
 def page_header(title, description=""):
     dates = get_store().tx.date
     period = f"{dates.min():%d.%m}–{dates.max():%d.%m.%Y}" if len(dates) else "Период не указан"
-    st.html(f'<div class="case-line"><span>Финансовое расследование <span class="case-product">Money graph</span></span><span>{period} <span class="case-currency">KZT</span></span></div>')
+    st.html(
+        f'<div class="case-line"><span>Финансовое расследование <span class="case-product">Money graph</span></span><span>{period} <span class="case-currency">KZT</span></span></div>'
+    )
     st.title(title)
     if description:
         st.html(f'<p class="page-description">{html.escape(description)}</p>')
@@ -75,13 +78,18 @@ def focused_gid(store):
 
 def badge(role, detail=""):
     label = ROLE_LABELS.get(role, role)
-    st.html(f'<span class="role-badge"><i class="role-dot" style="background:{ROLE_COLORS.get(role, "#8F9996")}"></i>{html.escape(label)}</span>')
+    st.html(
+        f'<span class="role-badge"><i class="role-dot" style="background:{ROLE_COLORS.get(role, "#8F9996")}"></i>{html.escape(label)}</span>'
+    )
     if detail and detail != role:
         st.caption(DETAILS.get(detail, detail))
 
 
 def legend():
-    items = ''.join(f'<span title="{role}"><i class="role-dot" style="background:{color}"></i>{ROLE_NAMES[role]}</span>' for role, color in ROLE_COLORS.items())
+    items = "".join(
+        f'<span title="{role}"><i class="role-dot" style="background:{color}"></i>{ROLE_NAMES[role]}</span>'
+        for role, color in ROLE_COLORS.items()
+    )
     st.html(f'<div class="role-legend">{items}</div>')
 
 
@@ -111,15 +119,45 @@ def node_table(frame, key, columns=None):
     show = display_table(frame, get_store())
     if columns:
         show = show[[c for c in columns if c in show]]
-    selected = st.dataframe(show, hide_index=True, width="stretch", key=key,
-                            on_select="rerun", selection_mode="single-row",
-                            column_config={**COLUMNS,
-                                           "priority_score": st.column_config.ProgressColumn("Приоритет", min_value=0, max_value=1, format="%.3f"),
-                                           "sum_kzt": st.column_config.NumberColumn("Сумма, KZT", format="localized"),
-                                           "why": st.column_config.TextColumn("Основание для проверки", width="large"),
-                                           "suggested_request": st.column_config.TextColumn("Что запросить", width="large")})
+    selected = st.dataframe(
+        show,
+        hide_index=True,
+        width="stretch",
+        key=key,
+        on_select="rerun",
+        selection_mode="single-row",
+        column_config={
+            **COLUMNS,
+            "priority_score": st.column_config.ProgressColumn(
+                "Приоритет", min_value=0, max_value=1, format="%.3f"
+            ),
+            "sum_kzt": st.column_config.NumberColumn("Сумма, KZT", format="localized"),
+            "why": st.column_config.TextColumn("Основание для проверки", width="large"),
+            "suggested_request": st.column_config.TextColumn("Что запросить", width="large"),
+        },
+    )
     if selected.selection.rows:
         gid = frame.iloc[selected.selection.rows[0]].gid
         # A consumed selection must not reopen the dossier when returning here.
         del st.session_state[key]
         open_dossier(gid)
+
+
+def assistant_enabled():
+    try:
+        if any(
+            find_spec(name) is None for name in ("langgraph", "langchain_core", "langchain_openai")
+        ):
+            return False
+        from agent.config import enabled
+
+        return enabled()
+    except ImportError:
+        return False
+
+
+@st.cache_resource
+def get_agent(signature, _store):
+    from agent.graph import build
+
+    return build(_store)

@@ -6,22 +6,43 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 
-OUT = Path("out")
+from agent.identifiers import to_gid as to_gid
+from moneygraph.paths import OUTPUT_DIR
+
+OUT = OUTPUT_DIR
 
 CARD_COLS = [
-    "gid", "depth", "is_seed", "role", "role_detail", "secondary_roles", "role_score", "evidence",
-    "cluster_id", "priority_score", "why", "in_deg", "out_deg", "in_kzt", "out_kzt", "in_tx", "out_tx",
-    "n_seed_payers", "pays_seed", "seed_flow_in", "n_seed_sources", "pass_through", "fast_pass_share",
-    "p_has_out", "flags", "cycle_with_seeds",
+    "gid",
+    "depth",
+    "is_seed",
+    "role",
+    "role_detail",
+    "secondary_roles",
+    "role_score",
+    "evidence",
+    "cluster_id",
+    "priority_score",
+    "why",
+    "in_deg",
+    "out_deg",
+    "in_kzt",
+    "out_kzt",
+    "in_tx",
+    "out_tx",
+    "n_seed_payers",
+    "pays_seed",
+    "seed_flow_in",
+    "n_seed_sources",
+    "pass_through",
+    "fast_pass_share",
+    "p_has_out",
+    "flags",
+    "cycle_with_seeds",
 ]
 
 
-def to_gid(x):
-    return int(str(x).strip())
-
-
 def _clean(v):
-    if isinstance(v, (np.integer,)):
+    if isinstance(v, np.integer):
         return int(v)
     if isinstance(v, (np.floating, float)):
         return None if np.isnan(v) else round(float(v), 4)
@@ -61,7 +82,9 @@ class GraphStore:
         )
         for name in ("rule_traces", "seed_paths", "truncation_model"):
             path = out / f"{name}.json"
-            setattr(store, name, json.loads(path.read_text()) if path.exists() else {})
+            setattr(
+                store, name, json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+            )
         return store
 
     def rule_trace(self, gid):
@@ -146,19 +169,24 @@ class GraphStore:
                     reach.setdefault(n, {})[g] = h
         rows = [
             (n, len(src), min(src.values()), sorted(src))
-            for n, src in reach.items() if len(src) >= min(min_sources, len(gids))
+            for n, src in reach.items()
+            if len(src) >= min(min_sources, len(gids))
         ]
         df = pd.DataFrame(rows, columns=["gid", "n_sources", "min_hops", "sources"])
         if df.empty:
             return df.assign(kzt_from_group=[], role=[], in_kzt=[])
         # money paid straight from the group; indirect hops aren't attributable
         df["kzt_from_group"] = [
-            sum(self.G.edges[g, n]["sum_kzt"] for g in gids if self.G.has_edge(g, n)) for n in df.gid
+            sum(self.G.edges[g, n]["sum_kzt"] for g in gids if self.G.has_edge(g, n))
+            for n in df.gid
         ]
         df["role"] = self.f.loc[df.gid, "role"].to_numpy()
         df["in_kzt"] = self.f.loc[df.gid, "in_kzt"].to_numpy()
-        return df.sort_values(["n_sources", "min_hops", "kzt_from_group"], ascending=[False, True, False],
-                              ignore_index=True)
+        return df.sort_values(
+            ["n_sources", "min_hops", "kzt_from_group"],
+            ascending=[False, True, False],
+            ignore_index=True,
+        )
 
     def top_nodes(self, n=10, role=None, include_seeds=True):
         df = self.f

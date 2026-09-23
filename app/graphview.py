@@ -1,4 +1,5 @@
 """Offline, selectable transfer graph with precision-safe client identifiers."""
+
 from __future__ import annotations
 
 import math
@@ -8,8 +9,8 @@ from pathlib import Path
 import networkx as nx
 import streamlit as st
 
-from app.theme import CLUSTER_PALETTE, ROLE_COLORS, fmt_kzt
 from app.presentation import ROLE_NAMES, number
+from app.theme import CLUSTER_PALETTE, ROLE_COLORS, fmt_kzt
 
 
 def node_color(row, color_by):
@@ -26,7 +27,9 @@ def _layout(graph, focus):
         return {}, "empty"
     if len(nodes) == 1:
         return {nodes[0]: (0.5, 0.5)}, "ego"
-    direct_neighbors = (set(graph.predecessors(focus)) | set(graph.successors(focus))) if focus in graph else set()
+    direct_neighbors = (
+        (set(graph.predecessors(focus)) | set(graph.successors(focus))) if focus in graph else set()
+    )
     if focus in graph and len(nodes) <= 36 and set(nodes) <= direct_neighbors | {focus}:
         incoming = set(graph.predecessors(focus)) - {focus}
         outgoing = set(graph.successors(focus)) - {focus}
@@ -50,8 +53,10 @@ def _layout(graph, focus):
     ordered.add_nodes_from(nodes)
     ordered.add_edges_from(sorted(graph.edges(), key=lambda edge: (str(edge[0]), str(edge[1]))))
     raw = nx.spring_layout(ordered, seed=42, iterations=90, weight=None)
-    axes = [(min(float(p[a]) for p in raw.values()), max(float(p[a]) for p in raw.values()))
-            for a in (0, 1)]
+    axes = [
+        (min(float(p[a]) for p in raw.values()), max(float(p[a]) for p in raw.values()))
+        for a in (0, 1)
+    ]
     positions = {}
     for gid, pos in raw.items():
         positions[gid] = tuple(
@@ -92,25 +97,43 @@ def graph_data(G, features, focus=None, color_by="role"):
         )
         if depth == 4:
             tooltip += "\nГраница на шаге 4: исходящие операции не исследованы."
-        nodes.append({
-            "id": sid, "label": sid[-10:], "role": role,
-            "color": node_color(row, color_by), "x": round(x, 7), "y": round(y, 7),
-            "radius": round(min(19.0, 7.0 + 1.7 * math.log1p((incoming + outgoing) / 1e5)), 2),
-            "seed": seed, "boundary": depth == 4, "focus": sid == focus_id,
-            "label_visible": len(G) <= 36 or sid == focus_id, "tooltip": tooltip,
-        })
+        nodes.append(
+            {
+                "id": sid,
+                "label": sid[-10:],
+                "role": role,
+                "color": node_color(row, color_by),
+                "x": round(x, 7),
+                "y": round(y, 7),
+                "radius": round(min(19.0, 7.0 + 1.7 * math.log1p((incoming + outgoing) / 1e5)), 2),
+                "seed": seed,
+                "boundary": depth == 4,
+                "focus": sid == focus_id,
+                "label_visible": len(G) <= 36 or sid == focus_id,
+                "tooltip": tooltip,
+            }
+        )
     edges = []
     for payer, recipient, attrs in sorted(G.edges(data=True), key=lambda e: (str(e[0]), str(e[1]))):
         amount = max(0.0, float(attrs.get("sum_kzt", 0)))
         count = int(attrs.get("n_tx", 0))
-        edges.append({
-            "source": str(payer), "target": str(recipient),
-            "width": round(min(5.0, max(0.8, math.log10(max(amount, 1)) - 3)), 2),
-            "amount": amount, "transactions": count,
-            "tooltip": f"{payer} → {recipient}\n{fmt_kzt(amount)} KZT · переводов: {number(count)}",
-        })
-    return {"nodes": nodes, "edges": edges, "focus": focus_id, "layout": layout,
-            "color_by": color_by}
+        edges.append(
+            {
+                "source": str(payer),
+                "target": str(recipient),
+                "width": round(min(5.0, max(0.8, math.log10(max(amount, 1)) - 3)), 2),
+                "amount": amount,
+                "transactions": count,
+                "tooltip": f"{payer} → {recipient}\n{fmt_kzt(amount)} KZT · переводов: {number(count)}",
+            }
+        )
+    return {
+        "nodes": nodes,
+        "edges": edges,
+        "focus": focus_id,
+        "layout": layout,
+        "color_by": color_by,
+    }
 
 
 _CSS = """

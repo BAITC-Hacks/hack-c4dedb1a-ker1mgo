@@ -1,19 +1,25 @@
 import streamlit as st
 
 from app.graphview import render
-from app.presentation import COLUMNS, cluster_hypothesis, number
+from app.presentation import COLUMNS, cluster_hypothesis
 from app.theme import fmt_kzt
 from app.ui import get_store, legend, node_table, open_dossier, page_header
 
 store = get_store()
-page_header("Кластеры сети", "Исследуйте связанные группы и откройте досье клиента прямо на карте или в списке.")
+page_header(
+    "Кластеры сети",
+    "Исследуйте связанные группы и откройте досье клиента прямо на карте или в списке.",
+)
 clusters = store.cluster_summary()
 if clusters.empty:
     st.info("Сводка по кластерам отсутствует. Выполните `make run` и обновите страницу.")
     st.stop()
 ordered = clusters.sort_values(["n_seed", "n_nodes"], ascending=False)
-cid = st.selectbox("Кластер", ordered.cluster_id.tolist(),
-                   format_func=lambda x: f"Кластер {x}" + (" — изолированные клиенты" if x == 0 else ""))
+cid = st.selectbox(
+    "Кластер",
+    ordered.cluster_id.tolist(),
+    format_func=lambda x: f"Кластер {x}" + (" — изолированные клиенты" if x == 0 else ""),
+)
 row = store.cluster_summary(cid).iloc[0]
 st.write(cluster_hypothesis(row.hypothesis))
 a, b, c = st.columns(3)
@@ -29,7 +35,9 @@ with view:
     legend()
     if len(G) < row.n_nodes:
         st.caption(f"Показаны {len(G)} клиентов с наибольшим приоритетом из {int(row.n_nodes)}.")
-    st.caption("Кластеры учитывают наличие связей, а стрелки — направление переводов. Членство в группе не доказывает общую цель.")
+    st.caption(
+        "Кластеры учитывают наличие связей, а стрелки — направление переводов. Членство в группе не доказывает общую цель."
+    )
 with members:
     st.caption("Нажмите строку, чтобы открыть досье.")
     subset = store.f[store.f.cluster_id.eq(cid)].sort_values("priority_score", ascending=False)

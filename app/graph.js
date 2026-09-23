@@ -79,11 +79,11 @@ function drawGraph(component) {
   };
   const hideTooltip = () => {tooltip.hidden = true;};
 
-  const nodes = new Map(data.nodes.map(node => [node.id, {...node, px: node.x * width, py: 40 + node.y * (height - 85)}]));
+  const nodes = new Map(data.nodes.map(node => [node.id, {...node, radius: data.layout === 'ego' && data.nodes.length > 7 && !node.focus ? node.radius * .64 : node.radius, px: data.layout === 'ego' ? Math.max(100, Math.min(width - 100, node.x * width)) : node.x * width, py: 40 + node.y * (height - 85)}]));
   if (data.layout === 'ego' && nodes.size > 1 && data.focus) {
-    viewport.append(create('text', {x: width * .19, y: 65, 'text-anchor': 'middle', class: 'mg-lane'}, 'Плательщики'));
+    viewport.append(create('text', {x: Math.max(100, width * .19), y: 65, 'text-anchor': 'middle', class: 'mg-lane'}, 'Плательщики'));
     viewport.append(create('text', {x: width * .5, y: 65, 'text-anchor': 'middle', class: 'mg-lane'}, 'Клиент'));
-    viewport.append(create('text', {x: width * .81, y: 65, 'text-anchor': 'middle', class: 'mg-lane'}, 'Получатели'));
+    viewport.append(create('text', {x: Math.min(width - 100, width * .81), y: 65, 'text-anchor': 'middle', class: 'mg-lane'}, 'Получатели'));
   }
   if (!nodes.size) viewport.append(create('text', {x: width / 2, y: height / 2, 'text-anchor': 'middle', class: 'mg-empty'}, 'В этом представлении нет клиентов'));
   const pairs = new Set(data.edges.map(edge => `${edge.source}:${edge.target}`));
@@ -126,8 +126,13 @@ function drawGraph(component) {
       stroke: node.seed ? '#18333F' : '#F6F9FA', 'stroke-width': node.seed ? 3 : 1.5}));
     if (node.boundary) group.append(create('circle', {r: node.radius + 3, fill: 'none',
       stroke: '#18333F', 'stroke-width': 1.5, 'stroke-dasharray': '4 3'}));
-    group.append(create('text', {x: 0, y: node.radius + 18, 'text-anchor': 'middle',
-      class: `node-label${node.label_visible ? '' : ' hidden-label'}`}, node.label));
+    const laneLabel = data.layout === 'ego' && !node.focus;
+    const left = node.x < .5;
+    const labelX = laneLabel ? (left ? -1 : 1) * (node.radius + 8) : 0;
+    const visible = node.label_visible && (data.nodes.length <= 20 || node.focus);
+    group.append(create('text', {x: labelX, y: laneLabel ? 4 : node.radius + 18,
+      'text-anchor': laneLabel ? (left ? 'end' : 'start') : 'middle',
+      class: `node-label${visible ? '' : ' hidden-label'}`}, node.label));
     const select = () => {
       if (suppressClick) return;
       hideTooltip();

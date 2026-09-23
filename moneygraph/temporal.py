@@ -2,8 +2,10 @@ from collections import deque
 
 import pandas as pd
 
+from .data import Context
 
-def fifo_fast_share(tx_in, tx_out, days):
+
+def fifo_fast_share(tx_in: pd.DataFrame, tx_out: pd.DataFrame, days: int) -> float:
     """Share of inflow KZT matched FIFO by outflow sent within `days` after it arrived.
 
     Dates have no time of day, so same-day in and out counts as matched.
@@ -12,7 +14,7 @@ def fifo_fast_share(tx_in, tx_out, days):
     if total <= 0 or tx_out.empty:
         return 0.0
     window = pd.Timedelta(days=days)
-    lots = deque()                      # [date, remaining amount], oldest first
+    lots = deque()  # [date, remaining amount], oldest first
     ins = iter(tx_in.sort_values("date")[["date", "sum_kzt"]].itertuples(index=False))
     nxt = next(ins, None)
     matched = 0.0
@@ -21,7 +23,7 @@ def fifo_fast_share(tx_in, tx_out, days):
             lots.append([nxt.date, nxt.sum_kzt])
             nxt = next(ins, None)
         while lots and d - lots[0][0] > window:
-            lots.popleft()              # too old to count as fast transit
+            lots.popleft()  # too old to count as fast transit
         while amt > 0 and lots:
             take = min(amt, lots[0][1])
             matched += take
@@ -47,30 +49,59 @@ def node_flags(sent, all_tx, c):
     return ";".join(flags)
 
 
-def compute(ctx) -> pd.DataFrame:
+def compute(ctx: Context) -> pd.DataFrame:
     """Aggregate flags in columns; only the amount-matching FIFO needs a node loop."""
     cfg, tx = ctx.cfg["temporal"], ctx.tx
     c = cfg["flags"]
     ids = pd.Index(ctx.nodes.gid, name="gid")
     incoming = tx.rename(columns={"dst": "gid"})
     outgoing = tx.rename(columns={"src": "gid"})
-    both = pd.concat([incoming[["gid", "date", "sum_kzt"]], outgoing[["gid", "date", "sum_kzt"]]], ignore_index=True)
+    both = pd.concat(
+        [incoming[["gid", "date", "sum_kzt"]], outgoing[["gid", "date", "sum_kzt"]]],
+        ignore_index=True,
+    )
     by_node = both.groupby("gid", sort=False)
     counts = by_node.size().reindex(ids, fill_value=0)
-    round_share = both.assign(is_round=both.sum_kzt.mod(c["round_unit"]).eq(0)).groupby("gid").is_round.mean().reindex(ids, fill_value=0)
+    round_share = (
+        both.assign(is_round=both.sum_kzt.mod(c["round_unit"]).eq(0))
+        .groupby("gid")
+        .is_round.mean()
+        .reindex(ids, fill_value=0)
+    )
     lo, hi = c["near_threshold_range"]
-    near = both.assign(near=both.sum_kzt.between(lo, hi)).groupby("gid").near.sum().reindex(ids, fill_value=0)
-    burst = both.groupby(["gid", "date"]).size().groupby(level=0).max().reindex(ids, fill_value=0) / counts.where(counts > 0, 1)
-    repeat = outgoing.groupby(["gid", "sum_kzt"]).size().groupby(level=0).max().reindex(ids, fill_value=0)
+    near = (
+        both.assign(near=both.sum_kzt.between(lo, hi))
+        .groupby("gid")
+        .near.sum()
+        .reindex(ids, fill_value=0)
+    )
+    burst = both.groupby(["gid", "date"]).size().groupby(level=0).max().reindex(
+        ids, fill_value=0
+    ) / counts.where(counts > 0, 1)
+    repeat = (
+        outgoing.groupby(["gid", "sum_kzt"])
+        .size()
+        .groupby(level=0)
+        .max()
+        .reindex(ids, fill_value=0)
+    )
     flags = pd.Series("", index=ids)
-    for name, mask in [("repeat_amount", repeat >= c["repeat_amount_min"]),
-                       ("round_amounts", (counts >= c["min_tx"]) & (round_share >= c["round_share"])),
-                       ("burst", (counts >= c["min_tx"]) & (burst >= c["burst_share"])),
-                       ("near_threshold", near >= c["near_threshold_min"])]:
+    for name, mask in [
+        ("repeat_amount", repeat >= c["repeat_amount_min"]),
+        ("round_amounts", (counts >= c["min_tx"]) & (round_share >= c["round_share"])),
+        ("burst", (counts >= c["min_tx"]) & (burst >= c["burst_share"])),
+        ("near_threshold", near >= c["near_threshold_min"]),
+    ]:
         flags.loc[mask] += name + ";"
     first_in = incoming.groupby("gid").date.min().reindex(ids)
     first_out = outgoing.groupby("gid").date.min().reindex(ids)
-    max_payers = incoming.groupby(["gid", "date"]).src.nunique().groupby(level=0).max().reindex(ids, fill_value=0)
+    max_payers = (
+        incoming.groupby(["gid", "date"])
+        .src.nunique()
+        .groupby(level=0)
+        .max()
+        .reindex(ids, fill_value=0)
+    )
 
     # Sort once globally. Small numpy arrays avoid thousands of per-node DataFrame
     # sorts, concatenations and groupbys while preserving the original FIFO order.
@@ -103,8 +134,13 @@ def compute(ctx) -> pd.DataFrame:
                 if lots[0][1] <= 0:
                     lots.popleft()
         shares.append(matched / total)
-    return pd.DataFrame({"gid": ids, "fast_pass_share": shares,
-                         "out_before_in": (first_out < first_in).to_numpy(),
-                         "max_same_day_payers": max_payers.to_numpy(dtype=int),
-                         "active_days": by_node.date.nunique().reindex(ids, fill_value=0).to_numpy(dtype=int),
-                         "flags": flags.str.rstrip(";").to_numpy()})
+    return pd.DataFrame(
+        {
+            "gid": ids,
+            "fast_pass_share": shares,
+            "out_before_in": (first_out < first_in).to_numpy(),
+            "max_same_day_payers": max_payers.to_numpy(dtype=int),
+            "active_days": by_node.date.nunique().reindex(ids, fill_value=0).to_numpy(dtype=int),
+            "flags": flags.str.rstrip(";").to_numpy(),
+        }
+    )
