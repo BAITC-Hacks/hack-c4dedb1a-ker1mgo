@@ -11,7 +11,7 @@ Each milestone ends with a push (see "When to push" in [CONTRIBUTING.md](../../C
 - [x] **B2 · output tests**
   `test_outputs.py` (schema, 2,248 rows, evidence, clusters, top list, runtime) and `test_no_hardcode.py`.
 
-- [ ] **B3 · clusters.py** (target 1:15, checkpoint 1)
+- [x] **B3 · clusters.py** (target 1:15, checkpoint 1)
   Replace the connected-components stub with Louvain on the undirected projection, `weight = log1p(sum_kzt)`, seed and resolution from config.
   Keep `cluster_id = 0` for nodes with no edges. Hypothesis templates in `summarize()` (see design; add `dominant_roles` and `seed_flow_in` columns once A's roles land).
   *Done when:* about 8 clusters with more than one seed, and the run output is stable across two runs.
