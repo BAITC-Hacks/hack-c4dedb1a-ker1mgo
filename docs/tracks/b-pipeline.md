@@ -24,7 +24,7 @@ Each milestone ends with a push (see "When to push" in [CONTRIBUTING.md](../../C
   **Push. Checkpoint 2.**
   *Result:* top 30 = 12 transit, 7 coordinators, 6 consolidators, 5 distributors, 0 seeds (after A8). Degree beats priority on both curves, for two reasons:
   8 of the degree top 50 are seeds, so it removes the money's sources (priority discounts seeds on purpose), and the 60-116 recipient hubs
-  shatter into singletons when removed. Against `degree_nonseed`, priority cuts seed flow faster (59% left at N=50 vs 85%) but still fragments less.
+  shatter into singletons when removed. Against `degree_nonseed`, priority cuts seed flow faster (60% left at N=50 vs 85%) but still fragments less.
   Priority targets money flow, not topology.
 
 - [x] **B5 · data_requests.csv** (moved to track C as C8)

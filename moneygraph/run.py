@@ -12,6 +12,7 @@ STEPS = [features, temporal, taint, truncation, roles, clusters, priority]
 def run(data_dir, out_dir, verbose=True):
     t0 = time.perf_counter()
     ctx = load_context(data_dir)
+    ctx.verbose = verbose
     for step in STEPS:
         t = time.perf_counter()
         part = step.compute(ctx)

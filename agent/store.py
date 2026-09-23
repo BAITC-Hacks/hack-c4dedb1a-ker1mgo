@@ -32,12 +32,13 @@ def _clean(v):
 
 
 class GraphStore:
-    def __init__(self, features, edges, tx, clusters=None, resilience=None):
+    def __init__(self, features, edges, tx, clusters=None, resilience=None, data_requests=None):
         self.f = features.set_index("gid", drop=False)
         self.edges = edges
         self.tx = tx.assign(date=pd.to_datetime(tx["date"]))
         self.clusters = clusters if clusters is not None else pd.DataFrame()
         self.resilience_df = resilience if resilience is not None else pd.DataFrame()
+        self.data_requests = data_requests if data_requests is not None else pd.DataFrame()
         self.G = nx.DiGraph()
         self.G.add_nodes_from(self.f.index)
         for r in edges.itertuples(index=False):
@@ -57,6 +58,7 @@ class GraphStore:
             pd.read_parquet(data / "transactions.parquet"),
             opt("clusters.csv"),
             opt("resilience.csv"),
+            opt("data_requests.csv"),
         )
 
     def has(self, gid):

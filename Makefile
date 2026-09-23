@@ -8,7 +8,7 @@ run:
 	$(PY) -m moneygraph.run --data $(DATA) --out $(OUT)
 
 app:
-	$(PY) -m streamlit run app/app.py
+	$(PY) -m streamlit run app/app.py --server.headless true
 
 test:
 	$(PY) -m pytest -q
