@@ -52,3 +52,23 @@ B5 moved to track C (`moneygraph/data_requests.py`, already wired into `run.py`)
   Priority formula plus weights and the resilience result (priority vs degree vs random) · paste A's Roles/Truncation text · "Limitations of the approach" · "Scaling to ~1M nodes" ·
   outputs table: add `data_requests.csv`, `truncation_model.json`, `agent_eval.csv`. Leave the "Assistant" section to C.
   **Push** each section as it's done.
+
+## Round 4 · reproducibility and evidence
+
+Round 4 ownership: Docker packaging, requirements, Makefile, README, and `app/pages/method.py`.
+Analytics owns pipeline exports and benchmark measurements; viewer owns the shared page shell.
+
+- [x] **B9 · one-command Docker launch**
+  Python 3.12 slim image, pinned dependencies and a non-root user. Offline pipeline writes a shared output volume;
+  the app waits for successful completion, mounts outputs read-only and has an HTTP health check. `.env` is optional.
+  *Done when:* a clean `docker compose up --build` runs the pipeline, serves a healthy app without a key,
+  and `make run` / `make test` still pass locally. **Push.**
+  *Verified:* clean image build; pipeline exited 0 in 15.2 s with networking disabled; app healthy as uid 10001,
+  no `.env` in the image, generated outputs available. Local pipeline: 14.1 s; existing suite: 23 passed.
+
+- [ ] **B10 · method, scale and jury story**
+  README leads with seed-money flow, truncation, resilience, next data requests and guarded assistant evaluation.
+  Method page reads only exported outputs and shows measured scaling, pipeline steps, benchmark caveats,
+  model cross-validation, configuration provenance and limitations.
+  *Done when:* the committed benchmark chart matches `out/bench.csv`, README and the page cite actual measurements,
+  page smoke tests pass, and the screenshot is readable at laptop width. **Push.**
