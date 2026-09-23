@@ -30,7 +30,7 @@ def inbound_features(ctx) -> pd.DataFrame:
     X["in_tx"] = f.in_tx
     X["mean_transfer"] = np.log1p(g.sum_kzt.mean())
     X["max_transfer"] = np.log1p(g.sum_kzt.max())
-    X["round_share"] = g.sum_kzt.apply(lambda s: (s % unit == 0).mean())
+    X["round_share"] = tin.assign(is_round=tin.sum_kzt.mod(unit).eq(0)).groupby("dst").is_round.mean()
     X["in_active_days"] = g.date.nunique()          # inbound days only; all active days would leak the label
     X["max_same_day_payers"] = f.max_same_day_payers
     X["n_seed_payers"] = f.n_seed_payers

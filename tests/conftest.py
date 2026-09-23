@@ -18,6 +18,7 @@ def pipeline(tmp_path_factory):
     elapsed = time.perf_counter() - t0
     return {
         "ctx": ctx,
+        "out": out,
         "elapsed": elapsed,
         "nodes": pd.read_csv(out / "nodes_roles.csv"),
         "clusters": pd.read_csv(out / "clusters.csv"),
