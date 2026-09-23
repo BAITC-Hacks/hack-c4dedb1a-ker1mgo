@@ -29,7 +29,7 @@ def run(data_dir, out_dir, verbose=True):
     if verbose:
         f = ctx.features
         print("\nroles:", f.role.value_counts().to_dict())
-        print(f"clusters: {len(cl)}  multi-seed: {(cl.n_seed > 1).sum()}")
+        print(f"clusters: {len(cl)}  multi-seed: {((cl.n_seed > 1) & (cl.cluster_id > 0)).sum()}")
         print(f"done in {time.perf_counter() - t0:.1f}s -> {out_dir}/")
     return ctx
 
