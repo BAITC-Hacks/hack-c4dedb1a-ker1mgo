@@ -9,6 +9,8 @@ each with the evidence behind it. Every finding is a hypothesis for an analyst t
 
 ![Investigate page with the money-flow graph and a client dossier](docs/media/investigate.png)
 
+**Demo video:** [docs/media/demo.webm](docs/media/demo.webm)
+
 **Contents:** [Launch](#launch) · [How it works](#how-it-works) · [Roles and thresholds](#roles-and-thresholds) ·
 [Data schemas](#data-schemas) · [Demo walkthrough](#demo-walkthrough) · [Limitations](#limitations) · [Scaling](#scaling) ·
 [Assistant](#optional-assistant) · [Commands](#commands)
