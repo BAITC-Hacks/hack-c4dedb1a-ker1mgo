@@ -36,6 +36,6 @@ Each milestone ends with a push (see "When to push" in [CONTRIBUTING.md](../../C
   Send the score and a Langfuse trace screenshot to B for the README.
   **Push. Freeze.**
 
-- [ ] **C7 · demo driver** (3:40)
+- [x] **C7 · demo driver** (3:40)
   Pre-select the demo gids, test the app without a key, and record a backup screen capture of the assistant answering.
   **Push** any fixes.
