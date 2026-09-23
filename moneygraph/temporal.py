@@ -48,22 +48,63 @@ def node_flags(sent, all_tx, c):
 
 
 def compute(ctx) -> pd.DataFrame:
-    cfg = ctx.cfg["temporal"]
-    tx = ctx.tx
-    by_dst = dict(tuple(tx.groupby("dst")))
-    by_src = dict(tuple(tx.groupby("src")))
-    empty = tx.iloc[:0]
+    """Aggregate flags in columns; only the amount-matching FIFO needs a node loop."""
+    cfg, tx = ctx.cfg["temporal"], ctx.tx
+    c = cfg["flags"]
+    ids = pd.Index(ctx.nodes.gid, name="gid")
+    incoming = tx.rename(columns={"dst": "gid"})
+    outgoing = tx.rename(columns={"src": "gid"})
+    both = pd.concat([incoming[["gid", "date", "sum_kzt"]], outgoing[["gid", "date", "sum_kzt"]]], ignore_index=True)
+    by_node = both.groupby("gid", sort=False)
+    counts = by_node.size().reindex(ids, fill_value=0)
+    round_share = both.assign(is_round=both.sum_kzt.mod(c["round_unit"]).eq(0)).groupby("gid").is_round.mean().reindex(ids, fill_value=0)
+    lo, hi = c["near_threshold_range"]
+    near = both.assign(near=both.sum_kzt.between(lo, hi)).groupby("gid").near.sum().reindex(ids, fill_value=0)
+    burst = both.groupby(["gid", "date"]).size().groupby(level=0).max().reindex(ids, fill_value=0) / counts.where(counts > 0, 1)
+    repeat = outgoing.groupby(["gid", "sum_kzt"]).size().groupby(level=0).max().reindex(ids, fill_value=0)
+    flags = pd.Series("", index=ids)
+    for name, mask in [("repeat_amount", repeat >= c["repeat_amount_min"]),
+                       ("round_amounts", (counts >= c["min_tx"]) & (round_share >= c["round_share"])),
+                       ("burst", (counts >= c["min_tx"]) & (burst >= c["burst_share"])),
+                       ("near_threshold", near >= c["near_threshold_min"])]:
+        flags.loc[mask] += name + ";"
+    first_in = incoming.groupby("gid").date.min().reindex(ids)
+    first_out = outgoing.groupby("gid").date.min().reindex(ids)
+    max_payers = incoming.groupby(["gid", "date"]).src.nunique().groupby(level=0).max().reindex(ids, fill_value=0)
 
-    rows = []
-    for g in ctx.nodes.gid:
-        tin, tout = by_dst.get(g, empty), by_src.get(g, empty)
-        both = pd.concat([tin, tout])
-        rows.append({
-            "gid": g,
-            "fast_pass_share": fifo_fast_share(tin, tout, cfg["fast_pass_days"]),
-            "out_before_in": bool(len(tin) and len(tout) and tout.date.min() < tin.date.min()),
-            "max_same_day_payers": int(tin.groupby("date").src.nunique().max()) if len(tin) else 0,
-            "active_days": int(both.date.nunique()),
-            "flags": node_flags(tout, both, cfg["flags"]),
-        })
-    return pd.DataFrame(rows)
+    # Sort once globally. Small numpy arrays avoid thousands of per-node DataFrame
+    # sorts, concatenations and groupbys while preserving the original FIFO order.
+    ordered = tx.sort_values("date", kind="stable")
+    dates = ordered.date.to_numpy(dtype="datetime64[ns]").astype("int64")
+    amounts = ordered.sum_kzt.to_numpy(dtype=float)
+    by_dst = ordered.groupby("dst", sort=False).indices
+    by_src = ordered.groupby("src", sort=False).indices
+    window = pd.Timedelta(days=cfg["fast_pass_days"]).value
+    shares = []
+    for gid in ids:
+        ins, outs = by_dst.get(gid, []), by_src.get(gid, [])
+        total = amounts[ins].sum() if len(ins) else 0
+        if total <= 0 or not len(outs):
+            shares.append(0.0)
+            continue
+        lots, i, matched = deque(), 0, 0.0
+        for j in outs:
+            day, amount = dates[j], amounts[j]
+            while i < len(ins) and dates[ins[i]] <= day:
+                lots.append([dates[ins[i]], amounts[ins[i]]])
+                i += 1
+            while lots and day - lots[0][0] > window:
+                lots.popleft()
+            while amount > 0 and lots:
+                take = min(amount, lots[0][1])
+                matched += take
+                amount -= take
+                lots[0][1] -= take
+                if lots[0][1] <= 0:
+                    lots.popleft()
+        shares.append(matched / total)
+    return pd.DataFrame({"gid": ids, "fast_pass_share": shares,
+                         "out_before_in": (first_out < first_in).to_numpy(),
+                         "max_same_day_payers": max_payers.to_numpy(dtype=int),
+                         "active_days": by_node.date.nunique().reindex(ids, fill_value=0).to_numpy(dtype=int),
+                         "flags": flags.str.rstrip(";").to_numpy()})

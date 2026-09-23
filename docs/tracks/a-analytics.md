@@ -65,3 +65,47 @@ Each milestone ends with a push (see "When to push" in [CONTRIBUTING.md](../../C
 - [x] **A10 · README "Roles" and "Truncation" sections, as text for B** (by 3:15)
   Rule table with the final thresholds and reasons, plus role counts. Truncation: n_train 1,723, AUC, the coefficient table, and mean P at depth 4 vs the observed base rate (from `out/truncation_model.json`).
   Send it to B in chat (B owns README.md), or push it to your branch as `docs/roles_section.md` and B pastes it in.
+
+## Round 4 (analytical evidence and measured scale)
+
+Round 4 ownership expands to `moneygraph/`, analytical tests and generated `out/`
+artifacts. Delivery owns the dependency pins and the product pages consume only
+exported evidence.
+
+- [x] **A11 · auditable explanations and seed-money paths**
+  One predicate tree drives ordered role assignment and its trace, including
+  alternatives, seed guards, configured thresholds and normalized failed-rule
+  deficits. Export per-node dossiers, exact priority arithmetic and top modeled
+  flow contributions with horizon, cycle and omitted-flow disclosure. Export
+  graph and transactions into `out/` for offline readers.
+  *Done when:* boundary/seed/ordering tests pass, all real-data traces agree with
+  assigned roles, exact waterfall arithmetic reconciles, flow-path tests cover
+  proportional caps and cycles, and existing CSV results remain unchanged.
+  **Push with the combined green Round 4 analytics changes.**
+
+- [x] **A12 · measured scalability and optimization**
+  Generate deterministic random graph lifts at 1×, 10× and 100× that preserve
+  joint directed-degree and transfer-amount distributions exactly. Measure all
+  analytical steps and export timings, provenance and a standalone scaling plot.
+  Compare production exact centrality with an explicitly sampled benchmark mode.
+  Vectorize temporal aggregation, replace quadratic percentile storage with
+  ranking, propagate source bitsets through strongly connected components, and
+  reuse sparse flow matrices across removal scenarios.
+  *Done when:* the full benchmark completes at all three sizes, distribution and
+  temporal-parity checks pass, performance evidence is documented, the full
+  suite is green, and all required output schemas remain unchanged.
+  **Push.**
+
+Measured on the committed synthetic workload: exact 1× core pipeline 4.901 s;
+sampled centrality (32 source pivots) 1× 2.148 s, 10× 17.251 s, and 100×
+(224,800 nodes, 311,900 edges, 484,000 transfers) 205.828 s. These are single
+host wall-time measurements, not extrapolations. The benchmark includes all
+seven analytical steps, resilience, summaries and core export; explanatory JSON
+and UI rendering are excluded and disclosed in `out/bench_metadata.json`.
+
+Temporal aggregation measured 5.070 s before versus 0.036 s after (about 140×),
+with identical output. On the 100× lift, repeated SCC decomposition in the old
+bounded-cycle routine ran for more than four minutes before interruption; exact
+local cycle enumeration brought the entire feature step to 15.875 s. Production
+betweenness remains exact. The final test suite has 35 passing tests, and all five
+existing CSV artifacts are byte-for-byte unchanged.

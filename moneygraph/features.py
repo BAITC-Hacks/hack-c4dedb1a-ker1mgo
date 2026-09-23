@@ -25,18 +25,19 @@ def compute(ctx) -> pd.DataFrame:
     df["pays_seed"] = df.gid.map(lambda v: sum(w in seeds for w in G.successors(v))).astype(int)
 
     # no "weight" attribute on edges, so HITS runs on the unweighted structure
-    hub, auth = nx.hits(G, max_iter=500)
+    hub, auth = nx.hits(G, max_iter=500, nstart=dict.fromkeys(G, 1.0))
     df["hub"] = df.gid.map(hub).astype(float)
     df["authority"] = df.gid.map(auth).astype(float)
-    df["betweenness"] = df.gid.map(nx.betweenness_centrality(G)).astype(float)
+    centrality = ctx.cfg.get("centrality", {})
+    samples = centrality.get("betweenness_samples")
+    df["betweenness"] = df.gid.map(nx.betweenness_centrality(
+        G, k=min(samples, len(G)) if samples else None,
+        seed=centrality.get("seed", ctx.cfg["clusters"]["seed"]))).astype(float)
 
-    # seeds sharing a cycle with the node; the node itself is not counted
-    on_cycle, cyc_seeds = set(), defaultdict(set)
-    for cyc in nx.simple_cycles(G, length_bound=4):
-        s = seeds.intersection(cyc)
-        for v in cyc:
-            on_cycle.add(v)
-            cyc_seeds[v] |= s - {v}
+    # Enumerate bounded local walks inside SCCs once. networkx.simple_cycles
+    # repeatedly decomposes a giant SCC after removing vertices, which dominated
+    # the 100× graph lift despite the short bound. Canonical start nodes dedupe.
+    on_cycle, cyc_seeds = short_cycle_features(G, seeds)
     df["in_cycle"] = df.gid.isin(on_cycle).astype(int)
     df["cycle_with_seeds"] = df.gid.map(lambda v: len(cyc_seeds.get(v, ()))).astype(int)
 
@@ -47,3 +48,23 @@ def compute(ctx) -> pd.DataFrame:
             q = df[col].quantile([0.5, 0.9, 0.95, 0.98]).tolist()
             print(f"    {col:<12}" + " ".join(f"{x:.4g}" for x in q))
     return df
+
+
+def short_cycle_features(G, seeds, max_length=4):
+    """Exact membership and other seed members of simple directed cycles ≤ 4."""
+    on_cycle, cyc_seeds = set(), defaultdict(set)
+    for component in nx.strongly_connected_components(G):
+        adjacency = {gid: [v for v in G.successors(gid) if v in component] for gid in component}
+        for start in component:
+            stack = [(start, (start,))]
+            while stack:
+                current, path = stack.pop()
+                for target in adjacency[current]:
+                    if target == start:
+                        seed_members = seeds.intersection(path)
+                        on_cycle.update(path)
+                        for gid in path:
+                            cyc_seeds[gid].update(seed_members - {gid})
+                    elif len(path) < max_length and target > start and target not in path:
+                        stack.append((target, (*path, target)))
+    return on_cycle, cyc_seeds
