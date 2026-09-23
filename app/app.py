@@ -42,7 +42,7 @@ if "goto" in st.session_state:
     gid, target = st.session_state.pop("goto")
     st.session_state.gid = gid
     st.session_state.page = target
-    for k in [k for k in st.session_state if k == "top" or str(k).startswith("nb_")]:
+    for k in [k for k in st.session_state if k in ("top", "dr") or str(k).startswith("nb_")]:
         del st.session_state[k]
 
 
@@ -114,6 +114,21 @@ def overview_page():
             cl = cl.sort_values(["n_seed", "n_nodes"], ascending=False)
             st.dataframe(cl.assign(sum_kzt_internal=cl.sum_kzt_internal.map(fmt_kzt)), hide_index=True,
                          height=380)
+
+    with st.expander("Data gaps: what to request next"):
+        dr = store.data_requests
+        if dr.empty:
+            st.caption("no data_requests.csv yet")
+        else:
+            counts = dr.groupby("reason").gid.nunique().sort_values(ascending=False)
+            st.caption(" · ".join(f"{r}: {n}" for r, n in counts.items()))
+            reason = st.selectbox("reason", ["all"] + counts.index.tolist(), key="dr_reason")
+            show = dr if reason == "all" else dr[dr.reason == reason]
+            show = show.assign(gid=show.gid.astype(str))
+            ev = st.dataframe(show, hide_index=True, on_select="rerun", selection_mode="single-row", key="dr")
+            if ev.selection.rows:
+                focus(show.gid.iloc[ev.selection.rows[0]], "Node card")
+                st.rerun()
 
     st.markdown("**Resilience**: what happens to the network if we remove the top-N nodes")
     res = store.resilience()

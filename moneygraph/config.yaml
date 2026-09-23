@@ -69,3 +69,6 @@ resilience:
   n_removed: [0, 5, 10, 20, 50]
   random_draws: 5              # random removal is averaged over 5 draws
   random_seed: 42
+
+data_requests:
+  small_component_max: 20      # weak components below this size aren't linked to the main network

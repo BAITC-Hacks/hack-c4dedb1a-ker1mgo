@@ -44,7 +44,7 @@ Each milestone ends with a push (see "When to push" in [CONTRIBUTING.md](../../C
 
 C is ahead of schedule, so it picks up data requests (was B5) and proof for the assistant.
 
-- [ ] **C8 · moneygraph/data_requests.py** (next, 30 min)
+- [x] **C8 · moneygraph/data_requests.py** (next, 30 min)
   The stub is already wired into `run.py` → `out/data_requests.csv` with `gid, reason, suggested_request`. Rows:
   `truncated_likely_forwarding` depth-4 nodes (request hop 5 outgoing) · seeds with `seed_no_outgoing` (request other channels) ·
   seeds with outgoing but under-counted inflow (request their incoming transfers) · nodes in small weak components (< 20 nodes) not linked to the main network.
