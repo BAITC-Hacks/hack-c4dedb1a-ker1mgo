@@ -17,11 +17,15 @@ Each milestone ends with a push (see "When to push" in [CONTRIBUTING.md](../../C
   *Done when:* about 8 clusters with more than one seed, and the run output is stable across two runs.
   **Push. Checkpoint 1.**
 
-- [ ] **B4 · priority.py** (target 2:15, checkpoint 2)
+- [x] **B4 · priority.py** (target 2:15, checkpoint 2)
   Percentile-ranked components with weights from config, seed factor, removal impact for the pre-ranked top `removal_candidates` (rerun A's seed flow with the node removed),
   `prio_components` as JSON, `why` naming the top 2–3 contributions with numbers. `resilience()`: top-N by priority vs degree vs random (mean of 5 draws), N ∈ {0, 5, 10, 20, 50}.
   *Done when:* the top 30 by priority is mostly non-seed consolidators, distributors and coordinators, and the priority curve in resilience drops faster than the degree curve (if not, write down why).
   **Push. Checkpoint 2.**
+  *Result:* top 30 = 13 coordinators, 4 consolidators, 4 distributors, 9 transit, 0 seeds. Degree beats priority on both curves, for two reasons:
+  8 of the degree top 50 are seeds, so it removes the money's sources (priority discounts seeds on purpose), and the 60-116 recipient hubs
+  shatter into singletons when removed. Against `degree_nonseed`, priority cuts seed flow faster (59% left at N=50 vs 85%) but still fragments less.
+  Priority targets money flow, not topology.
 
 - [x] **B5 · data_requests.csv** (moved to track C as C8)
   Rows with `gid, reason, suggested_request`: likely-forwarding depth-4 nodes (request hop 5), seeds without outgoing transfers, seeds needing their incoming transfers, small isolated components.
