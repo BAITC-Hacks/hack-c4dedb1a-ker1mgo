@@ -56,6 +56,13 @@ def callbacks():
         return []
 
 
+def flush():
+    """Send buffered traces; short-lived runs (CLI, eval) exit before the background sender does."""
+    if callbacks():
+        from langfuse import get_client
+        get_client().flush()
+
+
 class State(TypedDict):
     messages: Annotated[list[AnyMessage], add_messages]
     steps: int
@@ -133,3 +140,4 @@ if __name__ == "__main__":
     r = ask(build(GraphStore.load()), q)
     print(r["answer"])
     print("\ncited:", r["gids"], "\ntools:", r["tools"], "\nsteps:", r["steps"])
+    flush()
