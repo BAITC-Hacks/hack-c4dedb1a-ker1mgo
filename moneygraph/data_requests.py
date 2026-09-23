@@ -46,5 +46,6 @@ def build(ctx) -> pd.DataFrame:
                          "to the main network"))
 
     df = pd.DataFrame(rows, columns=COLS)
-    print("data requests:", df.reason.value_counts().to_dict())
+    if getattr(ctx, "verbose", True):
+        print("data requests:", df.reason.value_counts().to_dict())
     return df
