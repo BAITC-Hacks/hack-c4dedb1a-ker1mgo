@@ -35,7 +35,7 @@ Each milestone ends with a push (see "When to push" in [CONTRIBUTING.md](../../C
   One small toy DiGraph per role; depth-4 sink is never `terminal_observed`; seed role never depends on pass-through.
   **Push. Checkpoint 2.**
 
-- [ ] **A6 · truncation.py** (target 2:50)
+- [x] **A6 · truncation.py** (target 2:50)
   Logistic regression per design. Write `out/truncation_model.json` (AUC, coefficients, mean P at depth 4 vs observed rate at depth 1–3).
   Hook into roles: `terminal_inferred` / `truncated_unknown` / `truncated_likely_forwarding`. If AUC < `min_auc`, keep everything `truncated_unknown`.
   *Done when:* the AUC and coefficient table are sent to B for the README.
