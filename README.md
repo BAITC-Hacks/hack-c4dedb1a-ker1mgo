@@ -42,6 +42,9 @@ Each step is a module in `moneygraph/` with one function `compute(ctx)` that ret
 
 ## Outputs
 
+The outputs of the current `main` are committed in [`out/`](out/). The pipeline is deterministic (fixed seeds), so
+`make run` reproduces them byte for byte. `features.parquet` is not committed; `make run` rebuilds it for the viewer.
+
 | File | Contents |
 |---|---|
 | `out/nodes_roles.csv` | `gid, role, role_score, cluster_id, priority_score, evidence` + `role_detail, secondary_roles, depth, is_seed` (2,248 rows) |
