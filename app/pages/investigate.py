@@ -2,49 +2,55 @@ import streamlit as st
 
 from app import dossier
 from app.graphview import render
+from app.presentation import number
 from app.ui import focus, focused_gid, get_store, legend, page_header
 
 store = get_store()
-page_header("Follow the money.", "Trace a client’s connections and inspect the evidence behind each finding.")
+page_header("Исследование связей", "Найдите клиента и выберите узел на графе, чтобы проверить его роль, переводы и источники средств.")
 
 
 @st.fragment
 def investigation():
-    search, radius_col = st.columns([3, 1])
-    query = search.text_input("Find a client", placeholder="Search any part of a client ID", key="case_search")
-    radius = radius_col.radio("Neighbourhood", [1, 2], horizontal=True, format_func=lambda r: f"{r} hop" + ("s" if r == 2 else ""))
-    if query.strip():
+    search, radius_col, colour_col = st.columns([2.6, 1.1, 1.2], gap="medium")
+    query = search.text_input("ID клиента", placeholder="Полный ID или последние цифры", key="case_search")
+    radius = radius_col.segmented_control("Глубина связей", [1, 2], default=1,
+                                          format_func=lambda r: "1 шаг" if r == 1 else "2 шага", key="graph_radius") or 1
+    color_by = colour_col.segmented_control("Цвет узлов", ["role", "cluster"], default="role",
+                                            format_func=lambda v: "Роли" if v == "role" else "Кластеры", key="graph_color") or "role"
+    query = query.strip()
+    if query:
         hits = store.search(query, limit=100)
         if not hits:
-            st.info("No client ID contains this text. Try fewer digits, or select a client from Priorities.")
+            st.info("Клиент не найден. Проверьте цифры или сократите запрос.")
         elif len(hits) == 1:
-            candidate = str(hits[0])
             if st.session_state.get("last_search") != query:
-                focus(candidate)
+                focus(str(hits[0]))
                 st.session_state.last_search = query
         else:
-            selected = st.selectbox(f"Matching clients (up to {len(hits)})", [str(g) for g in hits], index=None, key="search_matches")
-            if selected and st.button("Open matching dossier", type="primary"):
+            st.caption(f"Найдено совпадений: {len(hits)}" + (" или больше. Уточните ID." if len(hits) == 100 else ". Выберите клиента."))
+            selected = st.selectbox("Совпадения", [str(g) for g in hits], index=None,
+                                    placeholder="Выберите ID клиента", key=f"search_matches_{query}")
+            if selected and st.session_state.get("last_match") != selected:
                 focus(selected)
+                st.session_state.last_match = selected
     else:
         st.session_state.last_search = ""
+        st.session_state.last_match = ""
     gid = focused_gid(store)
     graph, card = st.columns([1.65, 1], gap="large")
+    G = store.ego(gid, radius)
     with graph:
-        st.subheader("Money flow")
-        G = store.ego(gid, radius)
-        color_by = st.segmented_control("Colour nodes by", ["role", "cluster"], default="role", key="graph_color") or "role"
-        result = render(G, store.f, focus=gid, color_by=color_by, height=510, key="case_graph")
+        st.html(f'<div class="panel-title">Карта переводов<span class="panel-meta">{number(len(G))} узлов / {number(G.number_of_edges())} связей</span></div>')
+        result = render(G, store.f, focus=gid, color_by=color_by, height=430, key="case_graph")
         if result.selected and store.has(result.selected) and str(result.selected) != str(gid):
             focus(result.selected)
             st.rerun(scope="fragment")
         legend()
-        st.caption(f"{len(G):,} nodes / {G.number_of_edges():,} directed links. Edge width follows log KZT. Select a node to open its dossier.")
         if len(G) >= 300:
-            st.caption("This neighbourhood is capped at 300 nodes, keeping closest nodes and the largest flows first.")
+            st.caption("Показаны 300 ближайших узлов; при одинаковой глубине выбраны крупнейшие потоки.")
     with card:
         dossier.summary(store, gid)
-    st.divider()
+    st.write("")
     dossier.details(store, gid)
 
 

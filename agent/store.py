@@ -12,7 +12,7 @@ CARD_COLS = [
     "gid", "depth", "is_seed", "role", "role_detail", "secondary_roles", "role_score", "evidence",
     "cluster_id", "priority_score", "why", "in_deg", "out_deg", "in_kzt", "out_kzt", "in_tx", "out_tx",
     "n_seed_payers", "pays_seed", "seed_flow_in", "n_seed_sources", "pass_through", "fast_pass_share",
-    "p_has_out", "flags",
+    "p_has_out", "flags", "cycle_with_seeds",
 ]
 
 
