@@ -72,3 +72,49 @@ def test_top_and_timeline(store):
     tl = store.tx_timeline(C)
     assert tl.in_kzt.sum() == 1000 and tl.out_kzt.sum() == 9000 and len(tl) == 2
     assert store.prio_components(11) == {"seed_flow": 0.3}
+
+
+def test_tools_return_string_gids(store):
+    import json
+
+    from agent.tools import make_tools
+    tools = {t.name: t for t in make_tools(store)}
+    cc = json.loads(tools["common_collectors"].invoke({"gids": [str(g) for g in P] + ["777"]}))
+    assert cc["unknown_gids"] == ["777"]
+    assert cc["rows"][0]["gid"] == str(C) and cc["rows"][0]["kzt_from_group"] == 15000
+    assert "error" in json.loads(tools["get_node"].invoke({"gid": "123"}))
+
+
+class ScriptedLLM:
+    """Stands in for the chat model: returns canned replies in order."""
+
+    def __init__(self, replies):
+        self.replies = list(replies)
+
+    def bind_tools(self, tools):
+        return self
+
+    def invoke(self, messages):
+        return self.replies.pop(0)
+
+
+def _run(store, replies):
+    from agent.graph import ask, build
+    return ask(build(store, llm=ScriptedLLM(replies)), "кто собирает деньги с этих пятерых?")
+
+
+def test_guardrail_retries_then_passes(store):
+    from langchain_core.messages import AIMessage
+    tool_call = AIMessage("", tool_calls=[{"name": "common_collectors", "args": {"gids": [str(g) for g in P]},
+                                           "id": "1"}])
+    r = _run(store, [tool_call, AIMessage("collector 100000000000000555"), AIMessage(f"collector {C:018d}")])
+    assert r["tools"] == ["common_collectors"]
+    assert r["unknown"] == [] and "555" not in r["answer"]
+
+
+def test_guardrail_masks_after_one_retry(store):
+    from langchain_core.messages import AIMessage
+    bad = AIMessage("collector 100000000000000555")
+    r = _run(store, [bad, bad])
+    assert r["unknown"] == ["100000000000000555"]
+    assert "[unknown gid]" in r["answer"] and "555" not in r["answer"]
