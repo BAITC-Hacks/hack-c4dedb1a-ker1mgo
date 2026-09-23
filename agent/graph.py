@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 from typing import Annotated, TypedDict
 
@@ -8,6 +9,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 
+from agent.store import to_gid
 from agent.tools import cited_gids, make_tools
 
 DEFAULT_MODEL = "gpt-4.1-mini"
@@ -112,7 +114,9 @@ def ask(app, question, history=()):
     answer = out["messages"][-1].content
     new = out["messages"][len(msgs):]
     used = [c["name"] for m in new for c in (getattr(m, "tool_calls", None) or [])]
-    return {"answer": answer, "gids": sorted(str(g) for g in cited_gids(answer)), "tools": used,
+    order = [m.group() for m in re.finditer(r"(?<!\d)\d{15,20}(?!\d)", answer)]
+    gids = list(dict.fromkeys(str(to_gid(g)) for g in order))
+    return {"answer": answer, "gids": gids, "tools": used,
             "steps": out["steps"], "unknown": out["unknown"]}
 
 
