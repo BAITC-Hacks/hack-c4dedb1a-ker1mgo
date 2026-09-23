@@ -26,7 +26,7 @@ Each milestone ends with a push (see "When to push" in [CONTRIBUTING.md](../../C
   *Done when:* "кто собирает деньги с этих пятерых: …" returns cited gids that all exist.
   **Push. Checkpoint 2.**
 
-- [ ] **C5 · assistant tab + cards** (target 2:40)
+- [x] **C5 · assistant tab + cards** (target 2:40)
   Chat with history in `session_state`; cited gids as buttons that open the card. `agent/cards.py`: deterministic fact card, optional LLM prose cached in `out/cards/`.
   Without `OPENAI_API_KEY` the tab shows a short notice and the rest of the app works.
   **Push.**
