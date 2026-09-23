@@ -139,3 +139,26 @@ def test_seed_bitsets_equal_directed_reachability_with_cycles():
     assert taint.seed_source_counts(graph, seeds) == expected
 
 
+
+
+def test_export_contract_is_complete_and_finite(pipeline):
+    import json
+    out, ctx = pipeline["out"], pipeline["ctx"]
+    def reject_constant(value):
+        raise AssertionError(f"Non-standard JSON constant: {value}")
+    trace = json.loads((out / "rule_traces.json").read_text(), parse_constant=reject_constant)
+    paths = json.loads((out / "seed_paths.json").read_text(), parse_constant=reject_constant)
+    expected = set(ctx.features.gid.astype(str))
+    assert set(trace["nodes"]) == set(paths["nodes"]) == expected
+    pd.testing.assert_frame_equal(pd.read_parquet(out / "edges.parquet"), ctx.edges)
+    pd.testing.assert_frame_equal(pd.read_parquet(out / "transactions.parquet"), ctx.tx, check_dtype=False)
+    for gid, record in trace["nodes"].items():
+        assert "hypothesis" in record["dossier"]
+        if record["role"] == "peripheral":
+            assert record["fallback"]["matched"]
+        assert paths["nodes"][gid]["shown_kzt"] <= paths["nodes"][gid]["seed_flow_in"] + 1e-6
+    assert list(pipeline["nodes"].columns) == ["gid", "role", "role_score", "cluster_id", "priority_score", "evidence",
+                                               "role_detail", "secondary_roles", "depth", "is_seed"]
+    assert list(pipeline["top"].columns) == ["rank", "gid", "role", "priority_score", "why", "cluster_id", "evidence"]
+    assert list(pipeline["clusters"].columns) == ["cluster_id", "n_nodes", "n_seed", "sum_kzt_internal", "top_gids",
+                                                  "hypothesis", "dominant_roles", "seed_flow_in"]

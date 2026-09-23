@@ -22,6 +22,8 @@ def write_json(path, value):
 
 def logic_text(tree):
     if "children" in tree:
+        if not tree["children"]:
+            return "No primary role rule matched"
         return "(" + (" AND " if tree["operator"] == "all" else " OR ").join(map(logic_text, tree["children"])) + ")"
     return tree["label"]
 
@@ -33,22 +35,55 @@ def public_rule(item):
                            for condition in item["conditions"]]}
 
 
-def dossier(row):
+def dossier(row, cfg):
+    """Plain-language observations first; seed and crawl caveats remain explicit."""
     detail = row.role_detail
+    payers, recipients = roles.n(row.in_deg, "payer"), roles.n(row.out_deg, "recipient")
     if detail == "terminal_observed":
-        role_text = "The observed transfers suggest an end recipient: outgoing activity was crawled and none was found."
+        text = f"Receives from {payers} and has no outgoing transfers where outgoing activity was checked, a pattern consistent with an end recipient."
     elif detail == "terminal_inferred":
-        role_text = "The inbound pattern suggests a possible end recipient; this is a model inference because outgoing activity at depth 4 was not crawled."
+        text = (f"Receives from {payers}. The model estimates a {row.p_has_out:.0%} chance of forwarding, suggesting a possible end recipient. "
+                "Outgoing activity at depth 4 was not collected, so this remains an inference.")
     elif detail.startswith("truncated_"):
-        role_text = "Outgoing activity was not crawled at depth 4, so this node is an unverified sink."
-    elif row.role == "peripheral":
-        role_text = "The observed pattern does not meet a primary structural role rule."
+        text = f"Receives from {payers}, but outgoing activity at depth 4 was not collected: this is an unverified sink."
+        if math.isfinite(row.p_has_out):
+            text += f" The model estimates a {row.p_has_out:.0%} chance of forwarding."
+        if detail == "truncated_likely_forwarding":
+            text += " Request the next hop to check where money goes."
+    elif row.role == "coordinator":
+        observations = []
+        if row.pays_seed:
+            observations.append(f"sends transfers to {roles.n(row.pays_seed, 'known seed')}")
+        if row.cycle_with_seeds:
+            observations.append(f"shares short transfer cycles with {roles.n(row.cycle_with_seeds, 'other seed')}")
+        text = "; ".join(observations).capitalize() + ", a pattern consistent with coordination."
+    elif row.role == "distributor":
+        text = f"Sends {roles.kzt(row.out_kzt)} KZT to {recipients}"
+        if not row.is_seed:
+            text += f" after receiving from {payers}"
+        text += ", a pattern consistent with distribution."
+    elif row.role == "consolidator":
+        if row.is_seed:
+            text = f"A known seed with {payers} and only {recipients}, a pattern consistent with consolidation."
+        else:
+            ratio = f" and sends on {row.pass_through:.0%} of visible inflow" if math.isfinite(row.pass_through) else ""
+            text = f"Receives from {payers}{ratio} to {recipients}, a pattern consistent with consolidation."
+    elif row.role == "transit":
+        text = (f"Sends on {row.pass_through:.0%} of visible inflow to {recipients}; "
+                f"{row.fast_pass_share:.0%} of inflow is matched to transfers sent within {cfg['temporal']['fast_pass_days']} days. "
+                "This is consistent with transit activity.")
+    elif detail == "seed_no_outgoing":
+        text = "A known seed with no outgoing transfers in the supplied data. Request its transfer history to resolve the gap."
+    elif detail == "no_edges":
+        text = "No transfers involving this client appear in the supplied data. Request its transfer history before drawing conclusions."
     else:
-        role_text = f"The observed pattern shows signs of {row.role} activity under the ordered role rules."
-    money = f" About {roles.kzt(row.seed_flow_in)} KZT of modeled seed-originated flow reaches it in the final propagation round."
-    known = " It is already a known seed, and its incomplete inflow is excluded from pass-through rules." if row.is_seed else ""
-    priority = f" Its review priority is {row.priority_score:.3f} on the current graph's relative scale."
-    return role_text + money + priority + known + " This is an investigation hypothesis, not an allegation."
+        text = f"Receives from {payers} and sends to {recipients}; no structural role rule fully matches the observed pattern."
+    text += f" About {roles.kzt(row.seed_flow_in)} KZT of modeled seed money reaches this client."
+    if row.n_seed_sources:
+        text += f" Visible directed paths connect it to {roles.n(row.n_seed_sources, 'source seed')}."
+    if row.is_seed:
+        text += " Its incomplete inflow is excluded from pass-through rules."
+    return text + " Treat this as an investigation hypothesis; modeled flow is not transaction-level attribution."
 
 
 def write(ctx, out_dir):
@@ -61,7 +96,7 @@ def write(ctx, out_dir):
                               "rules": [public_rule(item) for item in trace["rules"]],
                               "nearest_rule": public_rule(trace["nearest_rule"]) if trace["nearest_rule"] else None,
                               "fallback": public_rule(trace["fallback"]) if "fallback" in trace else None,
-                              "priority": ctx.priority_audit[str(row.gid)], "dossier": dossier(row)}
+                              "priority": ctx.priority_audit[str(row.gid)], "dossier": dossier(row, ctx.cfg)}
     write_json(out / "rule_traces.json", {
         "schema_version": 1, "rule_order": roles.RULES,
         "semantics": "First matching rule wins; peripheral is the fallback. Secondary hints do not override the primary role.",

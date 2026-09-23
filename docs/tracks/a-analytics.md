@@ -83,7 +83,7 @@ exported evidence.
   proportional caps and cycles, and existing CSV results remain unchanged.
   **Push with the combined green Round 4 analytics changes.**
 
-- [ ] **A12 · measured scalability and optimization**
+- [x] **A12 · measured scalability and optimization**
   Generate deterministic random graph lifts at 1×, 10× and 100× that preserve
   joint directed-degree and transfer-amount distributions exactly. Measure all
   analytical steps and export timings, provenance and a standalone scaling plot.
@@ -95,3 +95,17 @@ exported evidence.
   temporal-parity checks pass, performance evidence is documented, the full
   suite is green, and all required output schemas remain unchanged.
   **Push.**
+
+Measured on the committed synthetic workload: exact 1× core pipeline 4.901 s;
+sampled centrality (32 source pivots) 1× 2.148 s, 10× 17.251 s, and 100×
+(224,800 nodes, 311,900 edges, 484,000 transfers) 205.828 s. These are single
+host wall-time measurements, not extrapolations. The benchmark includes all
+seven analytical steps, resilience, summaries and core export; explanatory JSON
+and UI rendering are excluded and disclosed in `out/bench_metadata.json`.
+
+Temporal aggregation measured 5.070 s before versus 0.036 s after (about 140×),
+with identical output. On the 100× lift, repeated SCC decomposition in the old
+bounded-cycle routine ran for more than four minutes before interruption; exact
+local cycle enumeration brought the entire feature step to 15.875 s. Production
+betweenness remains exact. The final test suite has 35 passing tests, and all five
+existing CSV artifacts are byte-for-byte unchanged.
