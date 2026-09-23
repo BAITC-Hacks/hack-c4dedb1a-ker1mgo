@@ -6,6 +6,8 @@ Team ker1mGo, case «Граф денег». Our case desk turns a four-hop crawl
 explainable role hypotheses, communities and a review order for 2,248 clients. Every finding is a hypothesis
 for an analyst to check, never an accusation.
 
+![Investigate case desk with the money-flow graph and an evidence dossier](docs/media/investigate.png)
+
 What makes this approach useful:
 
 - **Seed-money attribution.** A KZT-weighted, outflow-capped propagation estimates where seed-originated money reaches.
@@ -101,8 +103,9 @@ Each step is a module in `moneygraph/` with one function `compute(ctx)` that ret
 ## Outputs
 
 The outputs of the current `main` are committed in [`out/`](out/). The pipeline is deterministic (fixed seeds), so
-`make run` reproduces the required CSVs byte for byte. Large parquet evidence files are rebuilt by
-`make run`; timing and environment metadata naturally vary by machine. The app and assistant read only `out/`.
+`make run` reproduces the required CSVs byte for byte. Parquet evidence and explanation files are also committed
+as a ready-to-open case snapshot and rebuilt by `make run`; timing and environment metadata naturally vary by machine.
+The app and assistant read only `out/`.
 
 | File | Contents |
 |---|---|
@@ -371,8 +374,26 @@ recorded separately in `out/pipeline_metadata.json`.
 
 ![Measured pipeline scale](out/bench.svg)
 
+| Mode | Nodes | Transfers | Core pipeline |
+|---|---:|---:|---:|
+| Exact centrality, ×1 | 2,248 | 4,840 | 4.90 s |
+| Sampled betweenness (32 sources), ×1 | 2,248 | 4,840 | 2.15 s |
+| Sampled betweenness (32 sources), ×10 | 22,480 | 48,400 | 17.25 s |
+| Sampled betweenness (32 sources), ×100 | 224,800 | 484,000 | 205.83 s |
+
+Recorded on an Intel Core i5-10200H (8 logical CPUs, 15.32 GiB RAM), Linux x86-64,
+Python 3.12.12, one BLAS thread and one run per setting; see
+[`out/bench_metadata.json`](out/bench_metadata.json) for the full environment and workload description.
+The optimized temporal step takes **0.036 s versus 5.070 s** for the previous implementation at ×1
+(about **140× faster**, with identical temporal outputs verified by the benchmark).
+The larger run also exposed repeated component decomposition in cycle detection; bounded local walks now preserve
+the exact short-cycle calculation without that bottleneck. At ×100, the remaining largest steps are resilience
+(56.91 s), priority (47.68 s) and role assignment (46.64 s), which identifies where the next optimization effort belongs.
+
 The **Method & scale** page displays the same artifact and per-step measurements, with environment and mode details.
 The recorded chart is evidence from one machine, not a promise about other hardware or real-world graph topology.
+Benchmark outputs are a separate snapshot: rerun `make bench` (or the Docker command above) after replacing input data;
+`make run` refreshes case evidence without rerunning the scale experiment.
 
 ### Next scale step: ~1M nodes
 
@@ -389,4 +410,4 @@ Million-node performance has **not** been measured. These are engineering direct
 | removal impact for top 100 | same idea, still top-K only; or approximate with the flow through the node |
 | BFS per seed for `n_seed_sources` | one multi-source BFS with bitsets per seed, or HyperLogLog counters |
 | full recompute | incremental: new transfers update aggregates and only re-propagate from affected nodes; the crawl extends one hop at a time where `data_requests.csv` points |
-| pyvis viewer | WebGL (sigma.js / cosmograph); show ego graphs and clusters, never the whole graph |
+| offline SVG graph in a Streamlit v2 component | WebGL (sigma.js / cosmograph); keep ego graphs and clusters bounded |

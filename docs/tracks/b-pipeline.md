@@ -66,9 +66,14 @@ Analytics owns pipeline exports and benchmark measurements; viewer owns the shar
   *Verified:* clean image build; pipeline exited 0 in 15.2 s with networking disabled; app healthy as uid 10001,
   no `.env` in the image, generated outputs available. Local pipeline: 14.1 s; existing suite: 23 passed.
 
-- [ ] **B10 · method, scale and jury story**
+- [x] **B10 · method, scale and jury story**
   README leads with seed-money flow, truncation, resilience, next data requests and guarded assistant evaluation.
   Method page reads only exported outputs and shows measured scaling, pipeline steps, benchmark caveats,
   model cross-validation, configuration provenance and limitations.
   *Done when:* the committed benchmark chart matches `out/bench.csv`, README and the page cite actual measurements,
   page smoke tests pass, and the screenshot is readable at laptop width. **Push.**
+  *Verified:* Method page passed smoke checks against the shared viewer shell and current analytics exports,
+  including benchmark-mode changes. Browser screenshots reviewed at 1366 px. README and page reference the
+  matplotlib chart from measured exact ×1 (4.90 s) and sampled ×1/×10/×100 (2.15/17.25/205.83 s) runs;
+  benchmark scope, distributions, hardware and approximation caveats are explicit. Temporal reference comparison:
+  5.070 s to 0.036 s with output parity. Container rebuilt with pinned matplotlib; dependency check passed.
