@@ -62,6 +62,6 @@ Each milestone ends with a push (see "When to push" in [CONTRIBUTING.md](../../C
   *Done when:* no evidence line contains `0.0000`, and every transit node has pass_through ≤ 2 or is justified by the band rule.
   **Push.**
 
-- [ ] **A10 · README "Roles" and "Truncation" sections, as text for B** (by 3:15)
+- [x] **A10 · README "Roles" and "Truncation" sections, as text for B** (by 3:15)
   Rule table with the final thresholds and reasons, plus role counts. Truncation: n_train 1,723, AUC, the coefficient table, and mean P at depth 4 vs the observed base rate (from `out/truncation_model.json`).
   Send it to B in chat (B owns README.md), or push it to your branch as `docs/roles_section.md` and B pastes it in.
