@@ -41,7 +41,7 @@ Each milestone ends with a push (see "When to push" in [CONTRIBUTING.md](../../C
   *Done when:* the AUC and coefficient table are sent to B for the README.
   **Push.**
 
-- [ ] **A7 · freeze and demo prep** (3:00)
+- [x] **A7 · freeze and demo prep** (3:00)
   Pick 3 walk-through gids (a consolidator, a distributor, an inferred terminal), write 30 seconds of explanation for each, and help B with the README role section.
   **Push** any fixes.
 
