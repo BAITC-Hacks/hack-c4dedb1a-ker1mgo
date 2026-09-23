@@ -1,10 +1,4 @@
-import hashlib
 import os
-from pathlib import Path
-
-from agent.store import to_gid
-
-CARDS = Path("out") / "cards"
 
 PROSE_PROMPT = """Write 3-4 sentences for an AML analyst summarising this client from the facts below.
 Use only these facts and their numbers, word it as a hypothesis, cite the gid, and mention any data gaps.
@@ -54,14 +48,10 @@ def fact_card(store, gid):
 
 
 def prose(store, gid, llm=None, lang="Russian"):
-    """Optional LLM summary of the fact card, cached per card content so a rerun of the pipeline refreshes it."""
+    """Optional summary; the viewer and assistant never write pipeline outputs."""
     facts = fact_card(store, gid)
     if facts is None:
         return None
-    key = hashlib.sha1(f"{lang}\n{facts}".encode()).hexdigest()[:10]
-    path = CARDS / f"{to_gid(gid)}_{key}.md"
-    if path.exists():
-        return path.read_text()
     if llm is None:
         from langchain_openai import ChatOpenAI
 
@@ -70,6 +60,4 @@ def prose(store, gid, llm=None, lang="Russian"):
         llm = ChatOpenAI(model=os.environ.get("OPENAI_MODEL") or DEFAULT_MODEL, temperature=0,
                          base_url=os.environ.get("OPENAI_BASE_URL") or None)
     text = llm.invoke(PROSE_PROMPT.format(lang=lang, facts=facts)).content
-    CARDS.mkdir(parents=True, exist_ok=True)
-    path.write_text(text)
     return text

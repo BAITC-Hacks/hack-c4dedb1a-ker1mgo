@@ -7,7 +7,6 @@ import numpy as np
 import pandas as pd
 
 OUT = Path("out")
-DATA = Path("project_docs/data")
 
 CARD_COLS = [
     "gid", "depth", "is_seed", "role", "role_detail", "secondary_roles", "role_score", "evidence",
@@ -45,21 +44,31 @@ class GraphStore:
             self.G.add_edge(r.src, r.dst, sum_kzt=float(r.sum_kzt), n_tx=int(r.n_tx))
 
     @classmethod
-    def load(cls, out=OUT, data=DATA):
-        out, data = Path(out), Path(data)
+    def load(cls, out=OUT):
+        out = Path(out)
 
         def opt(name):
             p = out / name
             return pd.read_csv(p) if p.exists() else None
 
-        return cls(
+        store = cls(
             pd.read_parquet(out / "features.parquet"),
-            pd.read_parquet(data / "edges.parquet"),
-            pd.read_parquet(data / "transactions.parquet"),
+            pd.read_parquet(out / "edges.parquet"),
+            pd.read_parquet(out / "transactions.parquet"),
             opt("clusters.csv"),
             opt("resilience.csv"),
             opt("data_requests.csv"),
         )
+        for name in ("rule_traces", "seed_paths", "truncation_model"):
+            path = out / f"{name}.json"
+            setattr(store, name, json.loads(path.read_text()) if path.exists() else {})
+        return store
+
+    def rule_trace(self, gid):
+        return getattr(self, "rule_traces", {}).get("nodes", {}).get(str(to_gid(gid)), {})
+
+    def money_paths(self, gid):
+        return getattr(self, "seed_paths", {}).get("nodes", {}).get(str(to_gid(gid)), {})
 
     def has(self, gid):
         try:
@@ -175,7 +184,7 @@ class GraphStore:
         t = self.tx
         inc = t[t.dst == gid].groupby("date").sum_kzt.sum().rename("in_kzt")
         out = t[t.src == gid].groupby("date").sum_kzt.sum().rename("out_kzt")
-        return pd.concat([inc, out], axis=1).fillna(0.0).sort_index().reset_index()
+        return pd.concat([inc, out], axis=1, sort=False).fillna(0.0).sort_index().reset_index()
 
     def role_counts(self):
         return self.f.role.value_counts()

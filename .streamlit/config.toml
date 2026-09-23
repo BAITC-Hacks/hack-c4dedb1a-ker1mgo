@@ -1,0 +1,49 @@
+[server]
+headless = true
+enableStaticServing = true
+
+[browser]
+gatherUsageStats = false
+
+[client]
+toolbarMode = "minimal"
+
+[theme]
+base = "light"
+primaryColor = "#176B80"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#EEF3F5"
+textColor = "#18333F"
+borderColor = "#CAD7DD"
+font = "Ubuntu"
+headingFont = "Ubuntu"
+codeFont = "Ubuntu Mono"
+baseRadius = "small"
+buttonRadius = "small"
+showWidgetBorder = true
+baseFontSize = 15
+
+[[theme.fontFaces]]
+family = "Ubuntu"
+url = "app/static/Ubuntu-R.ttf"
+weight = 400
+
+[[theme.fontFaces]]
+family = "Ubuntu"
+url = "app/static/Ubuntu-M.ttf"
+weight = 500
+
+[[theme.fontFaces]]
+family = "Ubuntu"
+url = "app/static/Ubuntu-B.ttf"
+weight = 700
+
+[[theme.fontFaces]]
+family = "Ubuntu Mono"
+url = "app/static/UbuntuMono-R.ttf"
+weight = 400
+
+[theme.sidebar]
+backgroundColor = "#EEF3F5"
+secondaryBackgroundColor = "#FFFFFF"
+borderColor = "#CAD7DD"

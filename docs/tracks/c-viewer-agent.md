@@ -20,6 +20,26 @@ Each milestone ends with a push (see "When to push" in [CONTRIBUTING.md](../../C
   Overview: KPIs, role counts, clusters table with hypotheses, resilience chart.
   **Push.**
 
+## Round 4
+
+- [x] **C11 · design directions**
+  Render three Investigate mockups with real data and compare browser screenshots before implementation.
+  *Done when:* case desk, transfer ledger and flow atlas are reviewable; the chosen direction has tokens,
+  layout and accessibility principles. Keep temporary design work outside the repository.
+
+- [x] **C12 · analyst workspace**
+  Seven pages with shared navigation, offline graph, search, linked dossier, consistent role colours and useful empty states.
+  *Done when:* graph clicks preserve full string identifiers, keyboard navigation works, ego radii 1–2 and cluster view work;
+  rules, nearest match, priority waterfall, seed paths and plain-language dossier are visible from pipeline exports only.
+
+- [x] **C13 · browser and page checks**
+  Smoke-test every page without an assistant key, exercise graph/search interactions, inspect laptop and projector screenshots.
+  *Done when:* all page checks and the combined suite pass, runtime assets make no external network requests,
+  and the branch is ready for reviewer integration.
+  *Result:* Case desk layout, 52 combined tests passing. Chromium checked all seven pages,
+  exact graph-click identifiers, partial search, both ego radii, evidence tabs, keyboard controls,
+  and 1366 × 900 / 1920 × 1080 layouts. No external asset requests, failed requests or script errors.
+
 - [x] **C4 · tools + LangGraph agent** (target 2:15, checkpoint 2)
   `agent/tools.py` wraps store functions as tools. `agent/graph.py`: explicit `StateGraph` (agent → ToolNode loop → guardrail node that verifies every cited gid exists → answer), max 8 steps,
   `ChatOpenAI(model=OPENAI_MODEL, base_url=OPENAI_BASE_URL or None)`, Langfuse `CallbackHandler` when keys are set. `tests/test_store.py` on a toy graph without an LLM.
