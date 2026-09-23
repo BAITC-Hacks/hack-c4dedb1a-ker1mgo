@@ -6,6 +6,7 @@ import streamlit as st
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from agent import cards  # noqa: E402
 from agent.store import GraphStore  # noqa: E402
 import charts  # noqa: E402
 from graphview import ROLE_COLORS, fmt_kzt, render  # noqa: E402
@@ -29,7 +30,7 @@ store = get_store((OUT / "features.parquet").stat().st_mtime)
 f = store.f
 
 
-PAGES = ["Overview", "Network", "Node card", "Top list"]
+PAGES = ["Overview", "Network", "Node card", "Top list", "Assistant"]
 
 
 def focus(gid, page="Network"):
@@ -176,11 +177,83 @@ def card_page():
         else:
             st.plotly_chart(charts.timeline(tl), config={"displayModeBar": False})
 
+    with st.expander("fact card"):
+        st.markdown(cards.fact_card(store, gid))
+        if assistant_enabled():
+            if st.button("write a summary", key=f"prose_{gid}"):
+                with st.spinner("writing"):
+                    st.session_state[f"prose_text_{gid}"] = cards.prose(store, gid)
+            if st.session_state.get(f"prose_text_{gid}"):
+                st.info(st.session_state[f"prose_text_{gid}"])
+
     st.button("show on network", on_click=focus, args=(gid, "Network"))
     nb = store.neighbors(gid)
     if len(nb):
         st.markdown("**Counterparties** (click to open)")
         counterparties(nb, key=f"nb_card_{gid}", page="Node card")
+
+
+def assistant_enabled():
+    try:
+        from agent.graph import enabled
+    except ImportError:
+        return False
+    return enabled()
+
+
+@st.cache_resource
+def get_agent(mtime):
+    from agent.graph import build
+    return build(store)
+
+
+EXAMPLES = [
+    "Кого проверить первым и почему?",
+    "Какие кластеры похожи на сборочные ячейки?",
+    "Who are the top distributors?",
+]
+
+
+def assistant_page():
+    st.subheader("Assistant")
+    if not assistant_enabled():
+        st.info("The assistant needs `OPENAI_API_KEY` in `.env`. Everything else works without it.")
+        return
+    st.caption("Answers come only from the graph tools; every cited gid is checked against the graph. "
+               "Treat conclusions as hypotheses.")
+    chat = st.session_state.setdefault("chat", [])
+
+    for i, m in enumerate(chat):
+        with st.chat_message(m["role"]):
+            st.markdown(m["text"])
+            if m.get("gids"):
+                cols = st.columns(min(len(m["gids"]), 6))
+                for j, g in enumerate(m["gids"]):
+                    cols[j % len(cols)].button(g, key=f"cite_{i}_{g}", on_click=focus, args=(g, "Node card"))
+            if m.get("tools"):
+                st.caption("tools: " + ", ".join(m["tools"]) + (f" · steps {m['steps']}" if m.get("steps") else ""))
+
+    q = st.chat_input("Ask about clients, flows or clusters")
+    if not chat:
+        cols = st.columns(len(EXAMPLES))
+        for c, ex in zip(cols, EXAMPLES):
+            if c.button(ex):
+                q = ex
+    if q:
+        from agent.graph import ask
+        history = [(m["role"], m["text"]) for m in chat][-10:]
+        chat.append({"role": "user", "text": q})
+        with st.spinner("looking through the graph"):
+            try:
+                r = ask(get_agent((OUT / "features.parquet").stat().st_mtime), q, history)
+                chat.append({"role": "assistant", "text": r["answer"], "gids": r["gids"], "tools": r["tools"],
+                             "steps": r["steps"]})
+            except Exception as e:
+                chat.append({"role": "assistant", "text": f"Assistant error: {e}"})
+        st.rerun()
+    if chat and st.button("clear chat"):
+        chat.clear()
+        st.rerun()
 
 
 def network_page():
@@ -236,4 +309,5 @@ def top_page():
         st.rerun()
 
 
-{"Overview": overview_page, "Network": network_page, "Node card": card_page, "Top list": top_page}[page]()
+{"Overview": overview_page, "Network": network_page, "Node card": card_page, "Top list": top_page,
+ "Assistant": assistant_page}[page]()
