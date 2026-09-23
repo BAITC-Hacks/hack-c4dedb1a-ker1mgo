@@ -177,3 +177,29 @@ class GraphStore:
 
     def role_counts(self):
         return self.f.role.value_counts()
+
+    def demo_picks(self):
+        """Walk-through gids chosen from the current outputs, so they follow pipeline changes."""
+        f = self.f
+        picks = {}
+
+        def best(label, mask, by):
+            sub = f[mask]
+            if len(sub):
+                picks[label] = int(sub.nlargest(1, by).gid.iloc[0])
+
+        best("top priority (non-seed)", ~f.is_seed, "priority_score")
+        best("biggest distributor", f.role == "distributor", "out_deg")
+        best("top consolidator", (f.role == "consolidator") & ~f.is_seed, "in_deg")
+        best("top coordinator", f.role == "coordinator", "priority_score")
+        best("depth 4, likely forwarding", (f.depth == 4) & f.p_has_out.notna(), "p_has_out")
+        best("depth 4, inferred terminal", f.role_detail == "terminal_inferred", "in_kzt")
+        return picks
+
+    def demo_question(self):
+        """The 'who collects from these five' question, built around the top consolidator."""
+        c = self.demo_picks().get("top consolidator")
+        if c is None:
+            return None
+        payers = self.neighbors(c, "in").gid.head(5).astype(str)
+        return f"Кто собирает деньги с этих пятерых: {', '.join(payers)}?"
