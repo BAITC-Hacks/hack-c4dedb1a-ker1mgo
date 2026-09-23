@@ -57,6 +57,13 @@ def test_transit_passes_money_on():
     assert role_of(f, 10)[0] == "transit"
 
 
+def test_fast_pass_above_cap_is_not_transit():
+    # 10 forwards its inflow the next day but sends 5x what it received: money from outside the graph
+    f = toy([(1, 10, 100_000, 1), (10, 20, 500_000, 2)], {1: 0, 10: 1, 20: 2}, {1})
+    assert role_of(f, 10) == ("peripheral", "weak_signal")
+    assert "transit" in f.loc[10, "secondary_roles"]
+
+
 def test_observed_sink_is_terminal_observed():
     f = toy([(1, 10, 100_000, 1)], {1: 0, 10: 1}, {1})
     assert role_of(f, 10) == ("terminal", "terminal_observed")
