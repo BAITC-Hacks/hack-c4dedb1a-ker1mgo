@@ -20,7 +20,7 @@ Each milestone ends with a push (see "When to push" in [CONTRIBUTING.md](../../C
   Overview: KPIs, role counts, clusters table with hypotheses, resilience chart.
   **Push.**
 
-- [ ] **C4 · tools + LangGraph agent** (target 2:15, checkpoint 2)
+- [x] **C4 · tools + LangGraph agent** (target 2:15, checkpoint 2)
   `agent/tools.py` wraps store functions as tools. `agent/graph.py`: explicit `StateGraph` (agent → ToolNode loop → guardrail node that verifies every cited gid exists → answer), max 8 steps,
   `ChatOpenAI(model=OPENAI_MODEL, base_url=OPENAI_BASE_URL or None)`, Langfuse `CallbackHandler` when keys are set. `tests/test_store.py` on a toy graph without an LLM.
   *Done when:* "кто собирает деньги с этих пятерых: …" returns cited gids that all exist.
