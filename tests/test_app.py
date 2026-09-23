@@ -25,16 +25,16 @@ def app_test(pipeline, monkeypatch):
     [
         (
             "briefing",
-            "From known couriers to a network worth investigating.",
+            "Картина движения денег",
             "button",
-            "Investigate highest-priority client",
+            "Открыть досье первого кандидата",
         ),
-        ("investigate", "Follow the money.", "text_input", "Find a client"),
-        ("clusters", "Find the groups within the graph.", "selectbox", "Choose a cluster"),
-        ("priorities", "Who to review first, and why.", "selectbox", "Role hypothesis"),
-        ("data_gaps", "Ask for the evidence that is missing.", "selectbox", "Request category"),
-        ("assistant", "Ask a question. Inspect the references.", "info", None),
-        ("method", "Method & scale", "tabs", None),
+        ("investigate", "Исследование связей", "text_input", "ID клиента"),
+        ("clusters", "Кластеры сети", "selectbox", "Кластер"),
+        ("priorities", "Приоритеты проверки", "selectbox", "Гипотеза роли"),
+        ("data_gaps", "Запросы недостающих данных", "selectbox", "Тип запроса"),
+        ("assistant", "Ассистент по материалам дела", "info", None),
+        ("method", "Метод и масштаб", "tabs", None),
     ],
 )
 def test_every_page_without_key(app_test, page, title, widget, label):
@@ -46,7 +46,7 @@ def test_every_page_without_key(app_test, page, title, widget, label):
     if label:
         assert label in [item.label for item in elements]
     if page == "assistant":
-        assert "not connected" in app_test.info[0].value
+        assert "не подключён" in app_test.info[0].value
 
 
 def test_search_and_evidence_tabs(app_test, pipeline):
@@ -56,15 +56,16 @@ def test_search_and_evidence_tabs(app_test, pipeline):
     assert not app_test.exception
     assert app_test.session_state.gid == gid
     assert [tab.label for tab in app_test.tabs] == [
-        "Rule evidence",
-        "Priority calculation",
-        "Seed-money routes",
-        "Transfer ledger",
+        "Почему эта роль",
+        "Из чего приоритет",
+        "Пути денег",
+        "Переводы",
     ]
-    assert any("inferred" in item.value for item in app_test.info)
+    assert any("Вывод модели" in item.value for item in app_test.caption)
+    assert any("Исходящие операции не исследованы" in item.value for item in app_test.caption)
     app_test.text_input(key="case_search").input("not-a-client").run()
     assert not app_test.exception
-    assert any("No client ID" in item.value for item in app_test.info)
+    assert any("Клиент не найден" in item.value for item in app_test.info)
 
 
 def test_missing_outputs_explain_next_action(monkeypatch, tmp_path):
@@ -116,11 +117,11 @@ def test_missing_assistant_dependency_keeps_case_available_with_a_key(
     app_test.switch_page("pages/assistant.py").run()
     assert not app_test.exception
     assert not app_test.chat_input
-    assert "optional assistant dependencies" in app_test.info[0].value
+    assert "зависимости ассистента" in app_test.info[0].value
 
     app_test.switch_page("pages/investigate.py").run()
     assert not app_test.exception
-    assert app_test.title[0].value == "Follow the money."
+    assert app_test.title[0].value == "Исследование связей"
 
 
 def test_assistant_citation_opens_dossier_without_a_model(app_test, pipeline, monkeypatch):
@@ -149,5 +150,5 @@ def test_assistant_citation_opens_dossier_without_a_model(app_test, pipeline, mo
     assert len(app_test.chat_message) == 2
     app_test.button(key=f"citation_1_{gid}").click().run()
     assert not app_test.exception
-    assert app_test.title[0].value == "Follow the money."
+    assert app_test.title[0].value == "Исследование связей"
     assert app_test.session_state.gid == gid

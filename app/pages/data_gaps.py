@@ -1,30 +1,32 @@
 import streamlit as st
 
+from app.presentation import REQUESTS, number
 from app.ui import get_store, node_table, page_header
 
 store = get_store()
 page_header(
-    "Ask for the evidence that is missing.",
-    "Specific follow-up requests to resolve the crawl’s blind spots. Each request links back to a client dossier.",
+    "Запросы недостающих данных",
+    "Выберите пробел в наблюдениях, проверьте досье и сформируйте запрос следующей выгрузки.",
 )
 requests = store.data_requests
 if requests.empty:
-    st.info("No data requests are available. Run `make run` to rebuild the case outputs.")
+    st.info("Список запросов отсутствует. Выполните `make run`, чтобы подготовить материалы.")
     st.stop()
 a, b, c = st.columns(3)
-a.metric("Clients with follow-up requests", f"{requests.gid.nunique():,}")
-b.metric("Request categories", requests.reason.nunique())
-c.metric("Uncrawled depth-4 clients", int(store.f.depth.eq(4).sum()))
+a.metric("Клиенты с запросами", number(requests.gid.nunique()))
+b.metric("Категории запросов", requests.reason.nunique())
+c.metric("Граница обхода · шаг 4", int(store.f.depth.eq(4).sum()))
 reason = st.selectbox(
-    "Request category",
-    ["All requests"] + sorted(requests.reason.unique()),
-    format_func=lambda x: x.replace("_", " "),
+    "Тип запроса",
+    ["all"] + sorted(requests.reason.unique()),
+    format_func=lambda v: "Все запросы" if v == "all" else REQUESTS.get(v, (v, ""))[0],
 )
-rows = requests if reason == "All requests" else requests[requests.reason.eq(reason)]
+rows = requests if reason == "all" else requests[requests.reason.eq(reason)]
+st.caption("Нажмите строку, чтобы проверить основания в досье клиента.")
 node_table(rows, "request_queue", ["gid", "reason", "suggested_request"])
 st.download_button(
-    "Download selected data requests", rows.to_csv(index=False), "data_requests.csv", "text/csv"
+    "Скачать запросы · CSV", rows.to_csv(index=False), "data_requests.csv", "text/csv"
 )
 st.caption(
-    "Transfers below 5,000 KZT and transfers outside this bank are absent. No interface can reconstruct them from the visible graph."
+    "Переводы менее 5 000 KZT и операции за пределами банка не входят в выборку. Их нельзя восстановить по видимым связям."
 )

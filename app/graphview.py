@@ -9,6 +9,7 @@ from pathlib import Path
 import networkx as nx
 import streamlit as st
 
+from app.presentation import ROLE_NAMES, number
 from app.theme import CLUSTER_PALETTE, ROLE_COLORS, fmt_kzt
 
 
@@ -89,13 +90,13 @@ def graph_data(G, features, focus=None, color_by="role"):
         role = str(row.get("role", "peripheral"))
         x, y = positions[gid]
         tooltip = (
-            f"Client {sid}\n{role.replace('_', ' ').title()} · depth {depth}"
-            f"{' · seed' if seed else ''}\n"
-            f"Received {fmt_kzt(incoming)} · sent {fmt_kzt(outgoing)} KZT\n"
-            f"Priority {float(row.get('priority_score', 0)):.3f}"
+            f"Клиент {sid}\n{ROLE_NAMES.get(role, role)} · шаг {depth}"
+            f"{' · исходная точка (seed)' if seed else ''}\n"
+            f"Получено {fmt_kzt(incoming)} · отправлено {fmt_kzt(outgoing)} KZT\n"
+            f"Приоритет {number(row.get('priority_score', 0), 3)}"
         )
         if depth == 4:
-            tooltip += "\nDepth 4 boundary: outgoing activity is unobserved."
+            tooltip += "\nГраница на шаге 4: исходящие операции не исследованы."
         nodes.append(
             {
                 "id": sid,
@@ -123,7 +124,7 @@ def graph_data(G, features, focus=None, color_by="role"):
                 "width": round(min(5.0, max(0.8, math.log10(max(amount, 1)) - 3)), 2),
                 "amount": amount,
                 "transactions": count,
-                "tooltip": f"{payer} → {recipient}\n{fmt_kzt(amount)} KZT · {count:,} transfers",
+                "tooltip": f"{payer} → {recipient}\n{fmt_kzt(amount)} KZT · переводов: {number(count)}",
             }
         )
     return {
@@ -142,20 +143,20 @@ _CSS = """
 .mg-canvas {width: 100%; height: 100%; display: block; touch-action: pan-y; cursor: grab;}
 .mg-canvas.panning {cursor: grabbing;}
 .mg-canvas:focus-visible {outline: 2px solid #176B80; outline-offset: -3px;}
-.mg-toolbar {position: absolute; top: 12px; right: 12px; display: flex; gap: 5px; z-index: 2;}
+.mg-toolbar {position: absolute; top: 10px; right: 10px; display: flex; gap: 5px; z-index: 2;}
 .mg-toolbar button {border: 1px solid #C7D7DE; border-radius: 4px; background: white;
-  min-width: 32px; height: 32px; font: inherit; color: #18333F; cursor: pointer;}
+  min-width: 34px; height: 34px; font: inherit; color: #18333F; cursor: pointer;}
 .mg-toolbar button:hover {background: #E7EFF2;}
 .mg-toolbar button:focus-visible {outline: 2px solid #176B80; outline-offset: 2px;}
 .mg-help {position: absolute; bottom: 10px; left: 12px; right: 12px; color: #58717E;
-  pointer-events: none; font-size: 11px; line-height: 1.35;}
+  pointer-events: none; font-size: 11px; line-height: 1.4;}
 .mg-tooltip {position: absolute; z-index: 5; pointer-events: none; white-space: pre-line;
   background: #18333F; color: white; border-radius: 5px; padding: 9px 12px;
   font-size: 12px; line-height: 1.45; max-width: min(340px, calc(100% - 32px));
   overflow-wrap: anywhere; box-shadow: 0 4px 14px #18333F20;}
 .mg-node {cursor: pointer; outline: none;}
 .mg-node .node-label {fill: #294B5C; font-family: 'Ubuntu Mono', monospace;
-  font-size: 17px; pointer-events: none; paint-order: stroke; stroke: #F6F9FA; stroke-width: 3px;}
+  font-size: 12px; pointer-events: none; paint-order: stroke; stroke: #F6F9FA; stroke-width: 3px;}
 .mg-node .focus-ring {fill: none; stroke: #176B80; stroke-width: 2.5; opacity: 0;}
 .mg-node.is-focus .focus-ring {opacity: .8;}
 .mg-node:hover .focus-ring, .mg-node:focus-visible .focus-ring {opacity: 1; stroke-width: 3;}
@@ -163,8 +164,8 @@ _CSS = """
 .mg-node .hidden-label {opacity: 0;}
 .mg-edge {fill: none; stroke: #91A9B5; opacity: .68;}
 .mg-edge:hover {stroke: #176B80; opacity: 1;}
-.mg-lane {font-size: 17px; fill: #526A76;}
-.mg-empty {fill: #58717E; font-size: 17px;}
+.mg-lane {font-size: 12px; fill: #526A76;}
+.mg-empty {fill: #58717E; font-size: 12px;}
 """
 
 

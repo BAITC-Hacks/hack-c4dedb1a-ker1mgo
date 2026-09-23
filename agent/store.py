@@ -37,6 +37,7 @@ CARD_COLS = [
     "fast_pass_share",
     "p_has_out",
     "flags",
+    "cycle_with_seeds",
 ]
 
 

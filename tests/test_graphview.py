@@ -76,7 +76,7 @@ def test_ego_lanes_and_visible_evidence_marks():
     assert by_id[str(A)]["seed"]
     assert not by_id[str(B)]["seed"]
     assert by_id[str(C)]["boundary"]
-    assert "unobserved" in by_id[str(C)]["tooltip"]
+    assert "не исследованы" in by_id[str(C)]["tooltip"]
     assert str(A) in by_id[str(A)]["tooltip"]
     assert by_id[str(A)]["color"] == ROLE_COLORS["distributor"]
 
