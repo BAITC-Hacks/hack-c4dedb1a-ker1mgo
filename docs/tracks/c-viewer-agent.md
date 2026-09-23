@@ -31,7 +31,7 @@ Each milestone ends with a push (see "When to push" in [CONTRIBUTING.md](../../C
   Without `OPENAI_API_KEY` the tab shows a short notice and the rest of the app works.
   **Push.**
 
-- [ ] **C6 · agent/eval.py** (target 3:00)
+- [x] **C6 · agent/eval.py** (target 3:00)
   About 10 questions whose answers are computed from the graph; score gid recall and zero unknown gids; write `out/agent_eval.csv`.
   Send the score and a Langfuse trace screenshot to B for the README.
   **Push. Freeze.**
